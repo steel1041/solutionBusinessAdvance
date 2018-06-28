@@ -12,7 +12,7 @@ namespace ServiceContract
     {
 
         //超级管理员账户
-        private static readonly byte[] SuperAdmin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
+        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
         [Appcall("59aae873270b0dcddae10d9e3701028a31d82433")]
         public static extern object SDTContract(string method, object[] args);
@@ -20,49 +20,17 @@ namespace ServiceContract
         [DisplayName("transfer")]
         public static event Action<byte[], byte[], BigInteger> Transferred;
 
-        //因子
-        private const ulong factor = 100000000;
-
-        //总计数量
-        private const ulong TOTAL_AMOUNT = 0;
-
-        private const string TOTAL_SUPPLY = "totalSupply";
-
-        private const string TOTAL_GENERATE = "totalGenerate";
-
-        private const string CONFIG_KEY = "config_key";
-
-        /*Config 相关*/
-        private const string CONFIG_SDT_PRICE = "config_sdt_price";
-        private const string CONFIG_SDT_RATE = "config_sdt_rate";
-
-        private const string STORAGE_ACCOUNT = "storage_account";
-        private const string STORAGE_TXID = "storage_txid";
-
-        //交易类型
-        public enum ConfigTranType
-        {
-            TRANSACTION_TYPE_LOCK = 1,//锁仓
-            TRANSACTION_TYPE_DRAW,//提取
-            TRANSACTION_TYPE_FREE,//释放
-            TRANSACTION_TYPE_WIPE,//赎回
-            TRANSACTION_TYPE_SHUT,//关闭
-            TRANSACTION_TYPE_FORCESHUT,//对手关闭
-            TRANSACTION_TYPE_GIVE,//转移所有权
-        }
-
 
         public static Object Main(string operation, params object[] args)
         {
             var magicstr = "2018-06-26 15:20";
-
             if (Runtime.Trigger == TriggerType.Verification)
             {
-                return Runtime.CheckWitness(SuperAdmin);
+                return Runtime.CheckWitness(admin);
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
-
+                var callscript = ExecutionEngine.CallingScriptHash;
                 if (operation == "totalSupply")
                 {
                     if (args.Length != 1) return 0;
@@ -107,43 +75,102 @@ namespace ServiceContract
 
                     return transfer(name,from, to, value);
                 }
+                if (operation == "init")
+                {
+                    if(args.Length != 4) return false;
+                    string name = (string)args[0];
+                    string symbol = (string)args[1];
+                    byte decimals = (byte)args[2];
+                    byte[] addr = (byte[])args[3];
+
+                    if (!Runtime.CheckWitness(addr))
+                        return false;
+                    return init(name,symbol,decimals);
+                }
+                //增发代币，直接方法，风险极高
+                if (operation == "increase")
+                {
+                    if (args.Length != 3) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+                    BigInteger value = (BigInteger)args[2];
+
+                    if (!Runtime.CheckWitness(addr)) return false;
+                    //判断调用者是否是跳板合约
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, "callScript");
+                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    return increaseByBu(name,addr, value);
+                }
 
             }
             return true;
         }
 
+        //增发货币
+        public static bool increaseByBu(string name,byte[] to, BigInteger value)
+        {
+            if (to.Length != 20) return false;
+
+            if (value <= 0) return false;
+
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0) return false;
+
+            transfer(name,null,to, value);
+
+            Tokenized t = Helper.Deserialize(token) as Tokenized;
+            t.totalSupply = t.totalSupply+value;
+
+            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(t));
+            return true;
+        }
+
+        public static bool init(string name,string symbol,byte decimals)
+        {
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length != 0) return false;
+
+            Tokenized t = new Tokenized();
+            t.decimals = decimals;
+            t.name = name;
+            t.symbol = symbol;
+            t.totalSupply = 0;
+            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(t));
+            return true;
+        }
+
         public static BigInteger totalSupply(string name)
         {
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
-            if (sar.Length == 0) return 0;
-            return (Helper.Deserialize(sar) as SARInfo).totalSupply;
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0) return 0;
+            return (Helper.Deserialize(token) as Tokenized).totalSupply;
         }
 
         public static string name(string name)
         {
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
-            if (sar.Length == 0) return "";
-            return (Helper.Deserialize(sar) as SARInfo).name;
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0) return "";
+            return (Helper.Deserialize(token) as Tokenized).name;
         }
 
         public static string symbol(string name)
         {
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
-            if (sar.Length == 0) return "";
-            return (Helper.Deserialize(sar) as SARInfo).symbol;
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0) return "";
+            return (Helper.Deserialize(token) as Tokenized).symbol;
         }
 
         public static byte decimals(string name)
         {
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
-            if (sar.Length == 0) return 8;
-            return (Helper.Deserialize(sar) as SARInfo).decimals;
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0) return 8;
+            return (Helper.Deserialize(token) as Tokenized).decimals;
         }
 
         public static BigInteger balanceOf(string name,byte[] address)
         {
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
-            if (sar.Length == 0 || address.Length != 20) return 0;
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0 || address.Length != 20) return 0;
             return Storage.Get(Storage.CurrentContext, name.AsByteArray().Concat(address)).AsBigInteger();
         }
 
@@ -154,10 +181,8 @@ namespace ServiceContract
 
             if (from == to) return true;
 
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
-            if (sar.Length == 0) return false;
-
-            SARInfo sarInfo = Helper.Deserialize(sar) as SARInfo;
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0) return false;
 
             byte[] fromKey = name.AsByteArray().Concat(from);
             byte[] toKey = name.AsByteArray().Concat(to);
@@ -185,7 +210,8 @@ namespace ServiceContract
         }
 
 
-        public class SARInfo
+
+        public class Tokenized
         {
             //对应稳定币名称，唯一性
             public string name;
@@ -198,35 +224,7 @@ namespace ServiceContract
 
             //小数位数
             public byte decimals;
-
-            //创建者
-            public byte[] owner;
-
-            //交易序号
-            public byte[] txid;
-
-            //被锁定的资产,如PNeo
-            public BigInteger locked;
-
-            //已经提取的资产，如SDUSDT  
-            public BigInteger hasDrawed;
         }
-
-        public class SARTransferInfo
-        {
-            //拥有者
-            public byte[] owner;
-
-            //交易序号
-            public byte[] txid;
-
-            //被锁定的资产,如PNeo
-            public BigInteger locked;
-
-            //已经提取的资产，如SDUSDT  
-            public BigInteger hasDrawed;
-        }
-
 
         public class TransferInfo
         {
@@ -235,30 +233,6 @@ namespace ServiceContract
             public BigInteger value;
         }
 
-
-        public class SARTransferDetail
-        {
-            //地址
-            public byte[] from;
-
-            //CDP交易序号
-            public byte[] cdpTxid;
-
-            //交易序号
-            public byte[] txid;
-
-            //操作对应资产的金额,如PNeo
-            public BigInteger operated;
-
-            //已经被锁定的资产金额,如PNeo
-            public BigInteger hasLocked;
-
-            //已经提取的资产金额，如SDUSDT  
-            public BigInteger hasDrawed;
-
-            //操作类型
-            public int type;
-        }
 
         private static byte[] ConvertN(BigInteger n)
         {
@@ -273,16 +247,6 @@ namespace ServiceContract
             if (n == 4)
                 return new byte[2] { 0x00, 0x04 };
             throw new Exception("not support.");
-        }
-
-        public static bool operateTotalSupply(BigInteger mount)
-        {
-            BigInteger current = Storage.Get(Storage.CurrentContext, TOTAL_SUPPLY).AsBigInteger();
-            if (current + mount >= 0)
-            {
-                Storage.Put(Storage.CurrentContext, TOTAL_SUPPLY, current + mount);
-            }
-            return true;
         }
 
     }
