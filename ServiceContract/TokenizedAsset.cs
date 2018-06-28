@@ -275,16 +275,6 @@ namespace ServiceContract
             throw new Exception("not support.");
         }
 
-        public static bool increase(byte[] to, BigInteger value)
-        {
-            if (value <= 0) return false;
-
-            transfer(null, to, value);
-
-            operateTotalSupply(value);
-            return true;
-        }
-
         public static bool operateTotalSupply(BigInteger mount)
         {
             BigInteger current = Storage.Get(Storage.CurrentContext, TOTAL_SUPPLY).AsBigInteger();
