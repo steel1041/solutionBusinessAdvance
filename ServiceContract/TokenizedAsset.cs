@@ -69,10 +69,24 @@ namespace ServiceContract
                     byte[] from = (byte[])args[1];
                     byte[] to = (byte[])args[2];
                     BigInteger value = (BigInteger)args[3];
+
+                    if (from.Length != 20 || to.Length != 20) return false;
                     //没有from签名，不让转
                     if (!Runtime.CheckWitness(from))
                         return false;
+                    return transfer(name,from, to, value);
+                }
+                if (operation == "transfer_contract")
+                {
+                    if (args.Length != 4) return false;
+                    string name = (string)args[0];
+                    byte[] from = (byte[])args[1];
+                    byte[] to = (byte[])args[2];
+                    if (from.Length != 20 || to.Length != 20) return false;
 
+                    BigInteger value = (BigInteger)args[3];
+                    if (callscript.AsBigInteger() != from.AsBigInteger())
+                        return false;
                     return transfer(name,from, to, value);
                 }
                 if (operation == "init")
@@ -101,6 +115,20 @@ namespace ServiceContract
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return increaseByBu(name,addr, value);
                 }
+                //销毁代币，直接方法，风险极高
+                if (operation == "destory")
+                {
+                    if (args.Length != 3) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+                    BigInteger value = (BigInteger)args[2];
+
+                    if (!Runtime.CheckWitness(addr)) return false;
+                    //判断调用者是否是跳板合约
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, "callScript");
+                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    return destoryByBu(name,addr, value);
+                }
 
             }
             return true;
@@ -120,6 +148,25 @@ namespace ServiceContract
 
             Tokenized t = Helper.Deserialize(token) as Tokenized;
             t.totalSupply = t.totalSupply+value;
+
+            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(t));
+            return true;
+        } 
+        
+        //销毁货币
+        public static bool destoryByBu(string name,byte[] from, BigInteger value)
+        {
+            if (from.Length != 20) return false;
+
+            if (value <= 0) return false;
+
+            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            if (token.Length == 0) return false;
+
+            transfer(name,from,null, value);
+
+            Tokenized t = Helper.Deserialize(token) as Tokenized;
+            t.totalSupply = t.totalSupply - value;
 
             Storage.Put(Storage.CurrentContext, name, Helper.Serialize(t));
             return true;

@@ -37,7 +37,10 @@ namespace BusinessContract
 
         /*Config 相关*/
         private const string CONFIG_SDT_PRICE = "config_sdt_price";
+
+        //最低抵押率
         private const string CONFIG_SDT_RATE = "config_sdt_rate";
+       
 
         private const string STORAGE_ACCOUNT = "storage_account";
         private const string STORAGE_TXID = "storage_txid";
@@ -49,7 +52,7 @@ namespace BusinessContract
             TRANSACTION_TYPE_RESERVE,//锁仓
             TRANSACTION_TYPE_EXPANDE,//提取
             TRANSACTION_TYPE_FREE,//释放
-            TRANSACTION_TYPE_WIPE,//赎回
+            TRANSACTION_TYPE_CONTRACT,//赎回
             TRANSACTION_TYPE_SHUT,//关闭
             TRANSACTION_TYPE_FORCESHUT,//对手关闭
             TRANSACTION_TYPE_GIVE,//转移所有权
@@ -132,6 +135,29 @@ namespace BusinessContract
                     if (!Runtime.CheckWitness(addr)) return false;
                     return expande(name,addr,value);
                 }
+                //擦除
+                if (operation == "contract")
+                {
+                    if (args.Length != 3) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+                    BigInteger value = (BigInteger)args[2];
+
+                    if (!Runtime.CheckWitness(addr)) return false;
+                    return contract(name, addr, value);
+                }
+                //提现
+                if (operation == "withdraw")
+                {
+                    if (args.Length != 3) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+                    BigInteger value = (BigInteger)args[2];
+
+                    if (!Runtime.CheckWitness(addr)) return false;
+                    return withdraw(name, addr, value);
+                }
+
                 //关闭
                 if (operation == "close")
                 {
@@ -241,6 +267,108 @@ namespace BusinessContract
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
             return info;
+        }
+
+        /*提现抵押资产*/
+        public static bool withdraw(string name, byte[] addr, BigInteger value)
+        {
+            if (addr.Length != 20) return false;
+            if (value == 0) return false;
+            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            if (sar.Length == 0) return false;
+
+            SARInfo info = (SARInfo)Helper.Deserialize(sar);
+            // SAR制造者操作
+            if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
+
+            byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
+            if (to.Length == 0) return false;
+
+            BigInteger locked = info.locked;
+            BigInteger hasDrawed = info.hasDrawed;
+
+            //当前SDT美元价格，需要从价格中心获取
+            BigInteger sdtPrice = getConfig(CONFIG_SDT_PRICE);
+            //当前兑换率，需要从配置中心获取
+            BigInteger rate = getConfig(CONFIG_SDT_RATE);
+
+            //计算已经兑换过的PNEO量
+            BigInteger hasDrawSDT = hasDrawed * rate / (100 * sdtPrice);
+
+            //释放的总量大于已经剩余，不能操作
+            if (value > locked - hasDrawSDT) return false;
+
+            byte[] from = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
+            if (from.Length == 0) return false;
+
+            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
+
+            object[] param = new object[4];
+            param[0] = name;
+            param[1] = from;
+            param[2] = addr;
+            param[3] = value;
+            if (!(bool)TokenizedContract("transfer_contract", param)) return false;
+
+            //重新设置锁定量
+            info.locked = locked - value;
+            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
+
+            //记录交易详细数据
+            SARTransferDetail detail = new SARTransferDetail();
+            detail.from = addr;
+            detail.sarTxid = info.txid;
+            detail.txid = txid;
+            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_FREE;
+            detail.operated = value;
+            detail.hasLocked = locked - value;
+            detail.hasDrawed = hasDrawed;
+            Storage.Put(Storage.CurrentContext, txid, Helper.Serialize(detail));
+            return true;
+        }
+
+
+        /*返还部分仓位*/
+        public static bool contract(string name, byte[] addr, BigInteger value)
+        {
+            if (addr.Length != 20) return false;
+            if (value == 0) return false;
+            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            if (sar.Length == 0) return false;
+
+            SARInfo info = (SARInfo)Helper.Deserialize(sar);
+            // SAR制造者操作
+            if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
+
+            byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
+            if (to.Length == 0) return false;
+
+            BigInteger hasDrawed = info.hasDrawed;
+            //不能超过已经获取
+            if (value > hasDrawed) return false;
+
+            object[] arg = new object[3];
+            arg[0] = name;
+            arg[1] = addr;
+            arg[2] = value;
+
+            if (!(bool)SDTContract("destory", arg)) return false;
+
+            info.hasDrawed = hasDrawed - value;
+            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
+
+            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
+            //记录交易详细数据
+            SARTransferDetail detail = new SARTransferDetail();
+            detail.from = addr;
+            detail.sarTxid = info.txid;
+            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_CONTRACT;
+            detail.operated = value;
+            detail.hasLocked = info.locked;
+            detail.hasDrawed = info.hasDrawed;
+            detail.txid = txid;
+            Storage.Put(Storage.CurrentContext, txid, Helper.Serialize(detail));
+            return true;
         }
 
         /*开启一个新的债仓*/
