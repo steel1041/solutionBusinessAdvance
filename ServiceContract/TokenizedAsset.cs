@@ -1,29 +1,31 @@
 ﻿using Neo.SmartContract.Framework;
 using Neo.SmartContract.Framework.Services.Neo;
+using Neo.SmartContract.Framework.Services.System;
+using Helper = Neo.SmartContract.Framework.Helper;
 using System;
 using System.Numerics;
-using Helper = Neo.SmartContract.Framework.Helper;
 using System.ComponentModel;
-using Neo.SmartContract.Framework.Services.System;
+
 
 namespace ServiceContract
 {
     public class TokenizedAsset : SmartContract
     {
 
-        //超级管理员账户
-        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
+        /*存储结构有     
+         * map(address,balance)   存储地址余额   key = name+address
+         * map(txid,TransferInfo) 存储交易详情   key = 0x13+txid
+        */
 
-        [Appcall("59aae873270b0dcddae10d9e3701028a31d82433")]
-        public static extern object SDTContract(string method, object[] args);
+        //管理员账户
+        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
         [DisplayName("transfer")]
         public static event Action<byte[], byte[], BigInteger> Transferred;
 
-
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-06-26 15:20";
+            var magicstr = "2018-06-29";
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 return Runtime.CheckWitness(admin);
@@ -74,6 +76,10 @@ namespace ServiceContract
                     //没有from签名，不让转
                     if (!Runtime.CheckWitness(from))
                         return false;
+
+                    //如果to是不可收钱合约,不让转
+                    //if (!IsPayable(to))
+                    //    return false;
                     return transfer(name,from, to, value);
                 }
                 if (operation == "transfer_contract")
@@ -129,10 +135,27 @@ namespace ServiceContract
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return destoryByBu(name,addr, value);
                 }
+                //设置跳板调用合约地址
+                if (operation == "setCallScript")
+                {
+                    if (args.Length != 1) return false;
+                    byte[] callScript = (byte[])args[0];
+
+                    //超级管理员设置跳板合约地址
+                    if (!Runtime.CheckWitness(admin)) return false;
+                    return setCallScript(callScript);
+                }
 
             }
             return true;
         }
+
+        private static bool setCallScript(byte[] callScript)
+        {
+            Storage.Put(Storage.CurrentContext, "callScript", callScript);
+            return true;
+        }
+
 
         //增发货币
         public static bool increaseByBu(string name,byte[] to, BigInteger value)
@@ -295,6 +318,14 @@ namespace ServiceContract
                 return new byte[2] { 0x00, 0x04 };
             throw new Exception("not support.");
         }
+
+        //public static bool IsPayable(byte[] to)
+        //{
+        //    var c = Blockchain.GetContract(to);
+        //    if (c.Equals(null))
+        //        return true;
+        //    return c.IsPayable;
+        //}
 
     }
 }

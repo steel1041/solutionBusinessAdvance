@@ -10,21 +10,16 @@ namespace BusinessContract
 {
     public class Business : SmartContract
     {
-
-        //超级管理员账户
+        //管理员账户
         private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
+        //SDT合约
         [Appcall("59aae873270b0dcddae10d9e3701028a31d82433")]
         public static extern object SDTContract(string method, object[] args);
 
-        [Appcall("59aae873270b0dcddae10d9e3701028a31d82433")]
+        //标准合约
+        [Appcall("62424a6a4253ed5206aa601f5c8160e8ef468244")]
         public static extern object TokenizedContract(string method, object[] args);
-
-        [DisplayName("transfer")]
-        public static event Action<byte[], byte[], BigInteger> Transferred;
-
-        //因子
-        private const ulong factor = 100000000;
 
         //总计数量
         private const ulong TOTAL_AMOUNT = 0;
@@ -40,7 +35,6 @@ namespace BusinessContract
 
         //最低抵押率
         private const string CONFIG_SDT_RATE = "config_sdt_rate";
-       
 
         private const string STORAGE_ACCOUNT = "storage_account";
         private const string STORAGE_TXID = "storage_txid";
@@ -51,55 +45,38 @@ namespace BusinessContract
             TRANSACTION_TYPE_OPEN = 1,//建仓
             TRANSACTION_TYPE_RESERVE,//锁仓
             TRANSACTION_TYPE_EXPANDE,//提取
-            TRANSACTION_TYPE_FREE,//释放
+            TRANSACTION_TYPE_WITHDRAW,//释放
             TRANSACTION_TYPE_CONTRACT,//赎回
             TRANSACTION_TYPE_SHUT,//关闭
             TRANSACTION_TYPE_FORCESHUT,//对手关闭
             TRANSACTION_TYPE_GIVE,//转移所有权
         }
 
+        //SAR状态
+        public enum ConfigSARStatus
+        {
+            SAR_STATUS_SAFETY = 1,  //安全
+            SAR_STATUS_RISK,        //危险
+            SAR_STATUS_CLOSE,       //不可用
+        }
+
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-06-26 15:20";
+            var magicstr = "2018-06-29";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
-                return Runtime.CheckWitness(admin);
+                return false;
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
-               
-                if (operation == "setAccount")
-                {
-                    if (args.Length != 1) return false;
-                    byte[] address = (byte[])args[0];
-                    if (!Runtime.CheckWitness(admin)) return false;
-                    return setAccount(address);
-                }
-
-                if (operation == "setConfig")
-                {
-                    if (args.Length != 2) return false;
-                    string key = (string)args[0];
-                    BigInteger value = (BigInteger)args[1];
-                    return setConfig(key, value);
-                }
-
-                if (operation == "getConfig")
-                {
-                    if (args.Length != 1) return false;
-                    string key = (string)args[0];
-                    return getConfig(key);
-                }
-
                 if (operation == "getSAR4B")
                 {
                     if (args.Length != 1) return false;
                     string name = (string)args[0];
                     return getSAR4B(name);
                 }
-
                 if (operation == "openSAR4B")
                 {
                     if (args.Length != 4) return false;
@@ -109,7 +86,6 @@ namespace BusinessContract
                     byte[] addr = (byte[])args[3];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-
                     return openSAR4B(name,symbol,decimals,addr);
                 }
                 //储备，锁定资产
@@ -157,78 +133,29 @@ namespace BusinessContract
                     if (!Runtime.CheckWitness(addr)) return false;
                     return withdraw(name, addr, value);
                 }
-
-                //关闭
-                if (operation == "close")
+                if (operation == "setAccount")
+                {
+                    if (args.Length != 1) return false;
+                    byte[] address = (byte[])args[0];
+                    if (!Runtime.CheckWitness(admin)) return false;
+                    return setAccount(address);
+                }
+                if (operation == "setConfig")
                 {
                     if (args.Length != 2) return false;
-                    string name = (string)args[0];
-                    byte[] addr = (byte[])args[1];
-
-                    if (!Runtime.CheckWitness(addr)) return false;
-
-                    return close(name,addr);
-
+                    string key = (string)args[0];
+                    BigInteger value = (BigInteger)args[1];
+                    return setConfig(key, value);
                 }
-               
+                if (operation == "getConfig")
+                {
+                    if (args.Length != 1) return false;
+                    string key = (string)args[0];
+                    return getConfig(key);
+                }
+
+
             }
-            return true;
-        }
-
-
-        private static Boolean close(string name,byte[] addr)
-        {
-            if (addr.Length != 20) return false;
-
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
-            if (sar.Length == 0) return false;
-
-            SARInfo info = (SARInfo)Helper.Deserialize(sar);
-            // SAR制造者操作
-            if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
-
-            byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
-            if (to.Length == 0) return false;
-
-            byte[] owner = info.owner;
-            BigInteger locked = info.locked;
-            BigInteger hasDrawed = info.hasDrawed;
-
-            //当前余额必须要大于负债
-            //BigInteger balance = balanceOf(addr);
-            //if (hasDrawed > balance) return false;
-
-            //var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
-
-            ////从合约地址转账
-            //byte[] from = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
-            //object[] arg = new object[3];
-            //arg[0] = from;
-            //arg[1] = owner;
-            //arg[2] = locked;
-
-            //if (!(bool)SDTContract("transfer_contract", arg)) return false;
-
-            //if (hasDrawed > 0)
-            //{
-            //    //先要销毁SD
-            //    transfer(addr, null, hasDrawed);
-            //    //减去总量
-            //    operateTotalSupply(0 - hasDrawed);
-            //}
-            ////关闭CDP
-            //Storage.Delete(Storage.CurrentContext, key);
-
-            ////记录交易详细数据
-            //CDPTransferDetail detail = new CDPTransferDetail();
-            //detail.from = addr;
-            //detail.cdpTxid = cdpInfo.txid;
-            //detail.txid = txid;
-            //detail.type = (int)ConfigTranType.TRANSACTION_TYPE_SHUT;
-            //detail.operated = hasDrawed;
-            //detail.hasLocked = locked;
-            //detail.hasDrawed = hasDrawed;
-            //Storage.Put(Storage.CurrentContext, txid, Helper.Serialize(detail));
             return true;
         }
 
@@ -248,7 +175,6 @@ namespace BusinessContract
             if (!Runtime.CheckWitness(admin)) return false;
 
             Storage.Put(Storage.CurrentContext, key.AsByteArray(), value);
-
             return true;
         }
 
@@ -292,7 +218,7 @@ namespace BusinessContract
             //当前兑换率，需要从配置中心获取
             BigInteger rate = getConfig(CONFIG_SDT_RATE);
 
-            //计算已经兑换过的PNEO量
+            //计算已经兑换过的SDT量
             BigInteger hasDrawSDT = hasDrawed * rate / (100 * sdtPrice);
 
             //释放的总量大于已经剩余，不能操作
@@ -319,7 +245,7 @@ namespace BusinessContract
             detail.from = addr;
             detail.sarTxid = info.txid;
             detail.txid = txid;
-            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_FREE;
+            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_WITHDRAW;
             detail.operated = value;
             detail.hasLocked = locked - value;
             detail.hasDrawed = hasDrawed;
@@ -352,7 +278,7 @@ namespace BusinessContract
             arg[1] = addr;
             arg[2] = value;
 
-            if (!(bool)SDTContract("destory", arg)) return false;
+            if (!(bool)TokenizedContract("destory", arg)) return false;
 
             info.hasDrawed = hasDrawed - value;
             Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
@@ -381,6 +307,7 @@ namespace BusinessContract
 
             byte[] txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
             SARInfo info = new SARInfo();
+            info.symbol = symbol;
             info.decimals = decimals;
             info.name = name;
             info.hasDrawed = 0;
@@ -390,10 +317,11 @@ namespace BusinessContract
             info.txid = txid;
 
             //调用标准合约
-            object[] arg = new object[3];
+            object[] arg = new object[4];
             arg[0] = name;
             arg[1] = symbol;
             arg[2] = decimals;
+            arg[3] = addr;
             //保存标准
             if (!(bool)TokenizedContract("init", arg)) return false;
 
@@ -490,7 +418,7 @@ namespace BusinessContract
             arg[1] = addr;
             arg[2] = value;
 
-            if (!(bool)SDTContract("increase", arg)) return false;
+            if (!(bool)TokenizedContract("increase", arg)) return false;
 
             info.hasDrawed = hasDrawed + value;
             Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
