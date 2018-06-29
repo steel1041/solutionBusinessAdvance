@@ -229,12 +229,11 @@ namespace BusinessContract
 
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
 
-            object[] param = new object[4];
-            param[0] = name;
-            param[1] = from;
-            param[2] = addr;
-            param[3] = value;
-            if (!(bool)TokenizedContract("transfer_contract", param)) return false;
+            object[] param = new object[3];
+            param[0] = from;
+            param[1] = addr;
+            param[2] = value;
+            if (!(bool)SDTContract("transfer_contract", param)) return false;
 
             //重新设置锁定量
             info.locked = locked - value;
