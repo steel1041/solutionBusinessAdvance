@@ -63,7 +63,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-06-29";
+            var magicstr = "2018-07-02";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -153,7 +153,6 @@ namespace BusinessContract
                     string key = (string)args[0];
                     return getConfig(key);
                 }
-
 
             }
             return true;
@@ -312,7 +311,6 @@ namespace BusinessContract
             info.hasDrawed = 0;
             info.locked = 0;
             info.owner = addr;
-            info.totalSupply = 0;
             info.txid = txid;
 
             //调用标准合约
@@ -444,7 +442,7 @@ namespace BusinessContract
             public string name;
 
             //总量等价于已经提取的资产
-            public BigInteger totalSupply;
+            //public BigInteger totalSupply;
 
             //简称
             public string symbol;
