@@ -312,6 +312,7 @@ namespace BusinessContract
             info.locked = 0;
             info.owner = addr;
             info.txid = txid;
+            info.status = 1;
 
             //调用标准合约
             object[] arg = new object[4];
@@ -441,9 +442,6 @@ namespace BusinessContract
             //对应稳定币名称，唯一性
             public string name;
 
-            //总量等价于已经提取的资产
-            //public BigInteger totalSupply;
-
             //简称
             public string symbol;
 
@@ -461,31 +459,10 @@ namespace BusinessContract
 
             //已经提取的资产，如SDUSDT  
             public BigInteger hasDrawed;
+
+            //1安全  2不安全 3不可用   
+            public byte status;
         }
-
-        public class SARTransferInfo
-        {
-            //拥有者
-            public byte[] owner;
-
-            //交易序号
-            public byte[] txid;
-
-            //被锁定的资产,如PNeo
-            public BigInteger locked;
-
-            //已经提取的资产，如SDUSDT  
-            public BigInteger hasDrawed;
-        }
-
-
-        public class TransferInfo
-        {
-            public byte[] from;
-            public byte[] to;
-            public BigInteger value;
-        }
-
 
         public class SARTransferDetail
         {
