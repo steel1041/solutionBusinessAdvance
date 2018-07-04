@@ -25,10 +25,10 @@ namespace ServiceContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-06-29";
+            var magicstr = "2018-07-04";
             if (Runtime.Trigger == TriggerType.Verification)
             {
-                return Runtime.CheckWitness(admin);
+                return false;
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
@@ -95,6 +95,12 @@ namespace ServiceContract
                         return false;
                     return transfer(name,from, to, value);
                 }
+                if (operation == "getTXInfo")
+                {
+                    if (args.Length != 1) return 0;
+                    byte[] txid = (byte[])args[0];
+                    return getTXInfo(txid);
+                }
                 if (operation == "init")
                 {
                     if(args.Length != 4) return false;
@@ -148,6 +154,14 @@ namespace ServiceContract
 
             }
             return true;
+        }
+
+        public static TransferInfo getTXInfo(byte[] txid)
+        {
+            byte[] v = Storage.Get(Storage.CurrentContext, txid);
+            if (v.Length == 0)
+                return null;
+            return (TransferInfo)Helper.Deserialize(v);
         }
 
         private static bool setCallScript(byte[] callScript)
@@ -273,13 +287,24 @@ namespace ServiceContract
                 Storage.Put(Storage.CurrentContext, toKey, to_value + value);
             }
             //记录交易信息
-            //setTxInfo(from, to, value);
+            setTxInfo(name, fromKey, toKey, value);
             //notify
             Transferred(fromKey, toKey, value);
             return true;
         }
 
+        private static void setTxInfo(string name,byte[] from, byte[] to, BigInteger value)
+        {
+            TransferInfo info = new TransferInfo();
+            info.name = name;
+            info.from = from;
+            info.to = to;
+            info.value = value;
+            byte[] txinfo = Helper.Serialize(info);
 
+            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
+            Storage.Put(Storage.CurrentContext, txid, txinfo);
+        }
 
         public class Tokenized
         {
@@ -298,6 +323,7 @@ namespace ServiceContract
 
         public class TransferInfo
         {
+            public string name;
             public byte[] from;
             public byte[] to;
             public BigInteger value;

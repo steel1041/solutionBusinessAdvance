@@ -18,15 +18,8 @@ namespace BusinessContract
         public static extern object SDTContract(string method, object[] args);
 
         //标准合约
-        [Appcall("62424a6a4253ed5206aa601f5c8160e8ef468244")]
+        [Appcall("0260a9a92379aae2e015f54e41d2098a879c9764")]
         public static extern object TokenizedContract(string method, object[] args);
-
-        //总计数量
-        private const ulong TOTAL_AMOUNT = 0;
-
-        private const string TOTAL_SUPPLY = "totalSupply";
-
-        private const string TOTAL_GENERATE = "totalGenerate";
 
         private const string CONFIG_KEY = "config_key";
 
@@ -37,7 +30,6 @@ namespace BusinessContract
         private const string CONFIG_SDT_RATE = "config_sdt_rate";
 
         private const string STORAGE_ACCOUNT = "storage_account";
-        private const string STORAGE_TXID = "storage_txid";
 
         //交易类型
         public enum ConfigTranType
@@ -63,7 +55,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-02";
+            var magicstr = "2018-07-04";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
