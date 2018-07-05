@@ -151,6 +151,46 @@ namespace ServiceContract
                     if (!Runtime.CheckWitness(admin)) return false;
                     return setCallScript(callScript);
                 }
+                #region 升级合约,耗费490,仅限管理员
+                if (operation == "upgrade")
+                {
+                    //不是管理员 不能操作
+                    if (!Runtime.CheckWitness(admin))
+                        return false;
+
+                    if (args.Length != 1 && args.Length != 9)
+                        return false;
+
+                    byte[] script = Blockchain.GetContract(ExecutionEngine.ExecutingScriptHash).Script;
+                    byte[] new_script = (byte[])args[0];
+                    //如果传入的脚本一样 不继续操作
+                    if (script == new_script)
+                        return false;
+
+                    byte[] parameter_list = new byte[] { 0x07, 0x10 };
+                    byte return_type = 0x05;
+                    bool need_storage = (bool)(object)05;
+                    string name = "business";
+                    string version = "1";
+                    string author = "alchemint";
+                    string email = "0";
+                    string description = "alchemint";
+
+                    if (args.Length == 9)
+                    {
+                        parameter_list = (byte[])args[1];
+                        return_type = (byte)args[2];
+                        need_storage = (bool)args[3];
+                        name = (string)args[4];
+                        version = (string)args[5];
+                        author = (string)args[6];
+                        email = (string)args[7];
+                        description = (string)args[8];
+                    }
+                    Contract.Migrate(new_script, parameter_list, return_type, need_storage, name, version, author, email, description);
+                    return true;
+                }
+                #endregion
 
             }
             return true;
@@ -158,7 +198,8 @@ namespace ServiceContract
 
         public static TransferInfo getTXInfo(byte[] txid)
         {
-            byte[] v = Storage.Get(Storage.CurrentContext, txid);
+            var txidKey = new byte[] { 0x13 }.Concat(txid);
+            byte[] v = Storage.Get(Storage.CurrentContext, txidKey);
             if (v.Length == 0)
                 return null;
             return (TransferInfo)Helper.Deserialize(v);
@@ -303,7 +344,8 @@ namespace ServiceContract
             byte[] txinfo = Helper.Serialize(info);
 
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
-            Storage.Put(Storage.CurrentContext, txid, txinfo);
+            var txidKey = new byte[] { 0x13 }.Concat(txid);
+            Storage.Put(Storage.CurrentContext, txidKey, txinfo);
         }
 
         public class Tokenized

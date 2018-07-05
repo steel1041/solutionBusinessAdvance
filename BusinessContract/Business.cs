@@ -29,6 +29,9 @@ namespace BusinessContract
         //最低抵押率
         private const string CONFIG_SDT_RATE = "config_sdt_rate";
 
+        //最低抵押率
+        private const string CONFIG_LIMIT_RATE = "config_limit_rate";
+
         private const string STORAGE_ACCOUNT = "storage_account";
 
         //交易类型
@@ -55,7 +58,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-04";
+            var magicstr = "2018-07-05";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -145,6 +148,62 @@ namespace BusinessContract
                     string key = (string)args[0];
                     return getConfig(key);
                 }
+                if (operation == "getConfigTest")
+                {
+                    if (args.Length != 1) return false;
+                    string key = (string)args[0];
+                    return getConfig(key);
+                }
+                //修改SAR状态为关闭
+                if (operation == "settingSAR")
+                {
+                    if (args.Length != 2) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+
+                    if (!Runtime.CheckWitness(admin)) return false;
+                    return settingSAR(name, addr);
+                }
+                #region 升级合约,耗费490,仅限管理员
+                if (operation == "upgrade")
+                {
+                    //不是管理员 不能操作
+                    if (!Runtime.CheckWitness(admin))
+                        return false;
+
+                    if (args.Length != 1 && args.Length != 9)
+                        return false;
+
+                    byte[] script = Blockchain.GetContract(ExecutionEngine.ExecutingScriptHash).Script;
+                    byte[] new_script = (byte[])args[0];
+                    //如果传入的脚本一样 不继续操作
+                    if (script == new_script)
+                        return false;
+
+                    byte[] parameter_list = new byte[] { 0x07, 0x10 };
+                    byte return_type = 0x05;
+                    bool need_storage = (bool)(object)05;
+                    string name = "business";
+                    string version = "1";
+                    string author = "alchemint";
+                    string email = "0";
+                    string description = "alchemint";
+
+                    if (args.Length == 9)
+                    {
+                        parameter_list = (byte[])args[1];
+                        return_type = (byte)args[2];
+                        need_storage = (bool)args[3];
+                        name = (string)args[4];
+                        version = (string)args[5];
+                        author = (string)args[6];
+                        email = (string)args[7];
+                        description = (string)args[8];
+                    }
+                    Contract.Migrate(new_script, parameter_list, return_type, need_storage, name, version, author, email, description);
+                    return true;
+                }
+                #endregion
 
             }
             return true;
@@ -186,6 +245,22 @@ namespace BusinessContract
             return info;
         }
 
+        public static bool settingSAR(string name,byte[] addr)
+        {
+            if (addr.Length != 20) return false;
+            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            if (sar.Length == 0) return false;
+
+            SARInfo info = (SARInfo)Helper.Deserialize(sar);
+            // SAR制造者操作
+            if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
+
+            info.status = (int)ConfigSARStatus.SAR_STATUS_CLOSE;
+
+            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
+            return true;
+        }
+
         /*提现抵押资产*/
         public static bool withdraw(string name, byte[] addr, BigInteger value)
         {
@@ -197,6 +272,9 @@ namespace BusinessContract
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
             // SAR制造者操作
             if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
+
+            //SAR状态
+            if (info.status == (int)ConfigSARStatus.SAR_STATUS_CLOSE) return false;
 
             byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (to.Length == 0) return false;
@@ -255,6 +333,9 @@ namespace BusinessContract
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
             // SAR制造者操作
             if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
+
+            //SAR状态
+            if (info.status == (int)ConfigSARStatus.SAR_STATUS_CLOSE) return false;
 
             byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (to.Length == 0) return false;
@@ -344,6 +425,9 @@ namespace BusinessContract
             // SAR制造者操作
             if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
 
+            //SAR状态
+            if (info.status == (int)ConfigSARStatus.SAR_STATUS_CLOSE) return false;
+
             byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (to.Length == 0) return false;
 
@@ -392,6 +476,9 @@ namespace BusinessContract
             // SAR制造者操作
             if (info.owner.AsBigInteger() != addr.AsBigInteger()) return false;
 
+            //SAR状态
+            if (info.status == (int)ConfigSARStatus.SAR_STATUS_CLOSE) return false;
+
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
@@ -401,6 +488,7 @@ namespace BusinessContract
             BigInteger sdusd_limit = sdt_price * locked * 100 / sdt_rate;
 
             if (sdusd_limit < hasDrawed + value) return false;
+
 
             //调用标准增发
             object[] arg = new object[3];
@@ -428,7 +516,6 @@ namespace BusinessContract
             return true;
         }
 
-
         public class SARInfo
         {
             //对应稳定币名称，唯一性
@@ -453,7 +540,7 @@ namespace BusinessContract
             public BigInteger hasDrawed;
 
             //1安全  2不安全 3不可用   
-            public byte status;
+            public int status;
         }
 
         public class SARTransferDetail
