@@ -148,6 +148,17 @@ namespace BusinessContract
                     string key = (string)args[0];
                     return getConfig(key);
                 }
+                //个人用户赎回不安全的仓位
+                if (operation == "redeem")
+                {
+                    if (args.Length != 2) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+
+                    if (!Runtime.CheckWitness(addr)) return false;
+                    return redeem(name,addr);
+
+                }
                 if (operation == "getConfigTest")
                 {
                     if (args.Length != 1) return false;
@@ -515,6 +526,50 @@ namespace BusinessContract
             Storage.Put(Storage.CurrentContext, txid, Helper.Serialize(detail));
             return true;
         }
+
+        public static bool redeem(string name, byte[] addr)
+        {
+            if (addr.Length != 20) return false;
+            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            if (sar.Length == 0) return false;
+
+            SARInfo info = (SARInfo)Helper.Deserialize(sar);
+
+            //SAR状态,必须是关闭状态
+            if (info.status != (int)ConfigSARStatus.SAR_STATUS_CLOSE) return false;
+            //转账给用户SDT
+            byte[] from = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
+            if (from.Length == 0) return false;
+
+            //调用标准增发
+            object[] arg = new object[2];
+            arg[0] = name;
+            arg[1] = addr;
+            BigInteger balance =  (BigInteger)TokenizedContract("balanceOf",arg);
+            if (balance <= 0) return false;
+
+            BigInteger sdt_price = getConfig(CONFIG_SDT_PRICE);
+            BigInteger sdt_rate = getConfig(CONFIG_SDT_RATE); ;
+            //计算可赎回的SDT
+            BigInteger redeem = (balance * sdt_rate) / (info.locked * sdt_price * 100);
+
+            //销毁用户的稳定代币
+            arg = new object[3];
+            arg[0] = name;
+            arg[1] = addr;
+            arg[2] = balance;
+            if (!(bool)TokenizedContract("destory", arg)) return false;
+
+        
+            object[] param = new object[3];
+            param[0] = from;
+            param[1] = addr;
+            param[2] = redeem;
+            if (!(bool)SDTContract("transfer_contract", param)) return false;
+
+            return true;
+        }
+
 
         public class SARInfo
         {
