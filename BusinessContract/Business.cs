@@ -42,9 +42,7 @@ namespace BusinessContract
             TRANSACTION_TYPE_EXPANDE,//提取
             TRANSACTION_TYPE_WITHDRAW,//释放
             TRANSACTION_TYPE_CONTRACT,//赎回
-            TRANSACTION_TYPE_SHUT,//关闭
-            TRANSACTION_TYPE_FORCESHUT,//对手关闭
-            TRANSACTION_TYPE_GIVE,//转移所有权
+            TRANSACTION_TYPE_SHUT//关闭
         }
 
         //SAR状态
@@ -222,9 +220,8 @@ namespace BusinessContract
 
         public static bool setAccount(byte[] address)
         {
-            byte[] addr = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
-
-            if (addr.Length != 0) return false;
+            //byte[] addr = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
+            if (address.Length != 20) return false;
             Storage.Put(Storage.CurrentContext, STORAGE_ACCOUNT, address);
             return true;
         }
