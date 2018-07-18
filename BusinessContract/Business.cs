@@ -10,6 +10,11 @@ namespace BusinessContract
 {
     public class Business : SmartContract
     {
+        /*存储结构有     
+        * map(address,balance)   存储SAR信息    key = 0x12+name
+        * map(txid,TransferInfo) 存储交易详情   key = 0x13+txid
+        * map(str,address)       存储配置信息   key = 0x14+str
+       */
         //管理员账户
         private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
@@ -18,7 +23,7 @@ namespace BusinessContract
         public static extern object SDTContract(string method, object[] args);
 
         //标准合约
-        [Appcall("0260a9a92379aae2e015f54e41d2098a879c9764")]
+        [Appcall("7089fdfd106dbb9679c686ca84c1d07ae3142c32")]
         public static extern object TokenizedContract(string method, object[] args);
 
         private const string CONFIG_KEY = "config_key";
@@ -56,7 +61,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-05";
+            var magicstr = "2018-07-18";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -191,6 +196,7 @@ namespace BusinessContract
 
                     byte[] parameter_list = new byte[] { 0x07, 0x10 };
                     byte return_type = 0x05;
+                    //1|1|4
                     bool need_storage = (bool)(object)05;
                     string name = "business";
                     string version = "1";
@@ -246,7 +252,8 @@ namespace BusinessContract
         /*查询债仓详情*/
         public static SARInfo getSAR4B(string name)
         {
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length == 0) return null;
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
@@ -256,6 +263,7 @@ namespace BusinessContract
         public static bool settingSAR(string name,byte[] addr)
         {
             if (addr.Length != 20) return false;
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
             byte[] sar = Storage.Get(Storage.CurrentContext, name);
             if (sar.Length == 0) return false;
 
@@ -265,7 +273,7 @@ namespace BusinessContract
 
             info.status = (int)ConfigSARStatus.SAR_STATUS_CLOSE;
 
-            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
             return true;
         }
 
@@ -381,8 +389,14 @@ namespace BusinessContract
         {
             if (addr.Length != 20) return false;
 
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            //某个NAME的SAR是否存在
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length != 0) return false;
+
+            //该地址是否已经拥有SAR
+            byte[] sarinfo = Storage.Get(Storage.CurrentContext,new byte[] {0x14}.Concat(addr));
+            if (sarinfo.Length != 0) return false;
 
             byte[] txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
             SARInfo info = new SARInfo();
@@ -405,7 +419,7 @@ namespace BusinessContract
             if (!(bool)TokenizedContract("init", arg)) return false;
 
             //保存SAR
-            Storage.Put(Storage.CurrentContext,name,Helper.Serialize(info));
+            Storage.Put(Storage.CurrentContext,key,Helper.Serialize(info));
 
             //交易详细信息
             SARTransferDetail detail = new SARTransferDetail();
@@ -417,7 +431,9 @@ namespace BusinessContract
             detail.hasLocked = 0;
             detail.hasDrawed = 0;
 
-            Storage.Put(Storage.CurrentContext, txid, Helper.Serialize(detail));
+            Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
+
+            Storage.Put(Storage.CurrentContext, new byte[] { 0x14 }.Concat(addr),"sarinfo");
             return true;
         }
 
@@ -426,7 +442,8 @@ namespace BusinessContract
         {
             if (addr.Length != 20) return false;
             if (value == 0) return false;
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length == 0) return false;
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
@@ -455,7 +472,7 @@ namespace BusinessContract
 
             info.locked = info.locked + value;
             BigInteger currLock = info.locked;
-            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
 
             //记录交易详细数据
             SARTransferDetail detail = new SARTransferDetail();
@@ -466,7 +483,7 @@ namespace BusinessContract
             detail.hasLocked = currLock;
             detail.hasDrawed = info.hasDrawed;
             detail.txid = txid;
-            Storage.Put(Storage.CurrentContext, txid, Helper.Serialize(detail));
+            Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
 
             /*记录txid 已被使用*/
             Storage.Put(Storage.CurrentContext, txid, addr);
@@ -477,7 +494,9 @@ namespace BusinessContract
         {
             if (addr.Length != 20) return false;
             if (value == 0) return false;
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length == 0) return false;
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
@@ -507,7 +526,7 @@ namespace BusinessContract
             if (!(bool)TokenizedContract("increase", arg)) return false;
 
             info.hasDrawed = hasDrawed + value;
-            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(info));
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
 
             //记录交易详细数据
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
@@ -520,14 +539,16 @@ namespace BusinessContract
             detail.hasLocked = locked;
             detail.hasDrawed = hasDrawed;
 
-            Storage.Put(Storage.CurrentContext, txid, Helper.Serialize(detail));
+            Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
             return true;
         }
 
         public static bool redeem(string name, byte[] addr)
         {
             if (addr.Length != 20) return false;
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length == 0) return false;
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);

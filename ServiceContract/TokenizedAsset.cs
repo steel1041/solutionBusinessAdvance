@@ -13,8 +13,10 @@ namespace ServiceContract
     {
 
         /*存储结构有     
-         * map(address,balance)   存储地址余额   key = name+address
+         * map(address,balance)   存储地址余额   key = 0x11+name+address
+         * map(name,token)        存储多token值  key = 0x12+name
          * map(txid,TransferInfo) 存储交易详情   key = 0x13+txid
+         * map(str,address)       存储配置信息   key = 0x14+str
         */
 
         //管理员账户
@@ -25,7 +27,7 @@ namespace ServiceContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-04";
+            var magicstr = "2018-07-18";
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 return false;
@@ -113,7 +115,7 @@ namespace ServiceContract
                         return false;
                     return init(name,symbol,decimals);
                 }
-                //增发代币，直接方法，风险极高
+                //增发代币
                 if (operation == "increase")
                 {
                     if (args.Length != 3) return false;
@@ -123,11 +125,11 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, "callScript");
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return increaseByBu(name,addr, value);
                 }
-                //销毁代币，直接方法，风险极高
+                //销毁代币
                 if (operation == "destory")
                 {
                     if (args.Length != 3) return false;
@@ -137,7 +139,7 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, "callScript");
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return destoryByBu(name,addr, value);
                 }
@@ -169,6 +171,7 @@ namespace ServiceContract
 
                     byte[] parameter_list = new byte[] { 0x07, 0x10 };
                     byte return_type = 0x05;
+                    //1|0|4
                     bool need_storage = (bool)(object)05;
                     string name = "business";
                     string version = "1";
@@ -207,7 +210,8 @@ namespace ServiceContract
 
         private static bool setCallScript(byte[] callScript)
         {
-            Storage.Put(Storage.CurrentContext, "callScript", callScript);
+            var key = new byte[] { 0x14 }.Concat("callScript".AsByteArray());
+            Storage.Put(Storage.CurrentContext, key, callScript);
             return true;
         }
 
@@ -219,7 +223,8 @@ namespace ServiceContract
 
             if (value <= 0) return false;
 
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
             transfer(name,null,to, value);
@@ -227,7 +232,7 @@ namespace ServiceContract
             Tokenized t = Helper.Deserialize(token) as Tokenized;
             t.totalSupply = t.totalSupply+value;
 
-            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(t));
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(t));
             return true;
         } 
         
@@ -238,7 +243,8 @@ namespace ServiceContract
 
             if (value <= 0) return false;
 
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
             transfer(name,from,null, value);
@@ -246,13 +252,14 @@ namespace ServiceContract
             Tokenized t = Helper.Deserialize(token) as Tokenized;
             t.totalSupply = t.totalSupply - value;
 
-            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(t));
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(t));
             return true;
         }
 
         public static bool init(string name,string symbol,byte decimals)
         {
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length != 0) return false;
 
             Tokenized t = new Tokenized();
@@ -260,43 +267,50 @@ namespace ServiceContract
             t.name = name;
             t.symbol = symbol;
             t.totalSupply = 0;
-            Storage.Put(Storage.CurrentContext, name, Helper.Serialize(t));
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(t));
             return true;
         }
 
         public static BigInteger totalSupply(string name)
         {
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return 0;
             return (Helper.Deserialize(token) as Tokenized).totalSupply;
         }
 
         public static string name(string name)
         {
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return "";
             return (Helper.Deserialize(token) as Tokenized).name;
         }
 
         public static string symbol(string name)
         {
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return "";
             return (Helper.Deserialize(token) as Tokenized).symbol;
         }
 
         public static byte decimals(string name)
         {
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return 8;
             return (Helper.Deserialize(token) as Tokenized).decimals;
         }
 
         public static BigInteger balanceOf(string name,byte[] address)
         {
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0 || address.Length != 20) return 0;
-            return Storage.Get(Storage.CurrentContext, name.AsByteArray().Concat(address)).AsBigInteger();
+
+            var balanceKey = new byte[] { 0x11 }.Concat(name.AsByteArray()).Concat(address);
+            return Storage.Get(Storage.CurrentContext, balanceKey).AsBigInteger();
         }
 
 
@@ -305,12 +319,12 @@ namespace ServiceContract
             if (value <= 0) return false;
 
             if (from == to) return true;
-
-            byte[] token = Storage.Get(Storage.CurrentContext, name);
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
-            byte[] fromKey = name.AsByteArray().Concat(from);
-            byte[] toKey = name.AsByteArray().Concat(to);
+            byte[] fromKey = new byte[] { 0x11 }.Concat(name.AsByteArray()).Concat(from);
+            byte[] toKey = new byte[] { 0x11 }.Concat(name.AsByteArray()).Concat(to);
             //付款方
             if (from.Length > 0)
             {
