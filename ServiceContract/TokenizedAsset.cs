@@ -113,7 +113,23 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr))
                         return false;
+                    //判断调用者是否是跳板合约
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
+                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return init(name,symbol,decimals);
+                }
+                if (operation == "close")
+                {
+                    if (args.Length != 2) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+
+                    if (!Runtime.CheckWitness(addr))
+                        return false;
+                    //判断调用者是否是跳板合约
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
+                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    return close(name, addr);
                 }
                 //增发代币
                 if (operation == "increase")
@@ -212,6 +228,16 @@ namespace ServiceContract
         {
             var key = new byte[] { 0x14 }.Concat("callScript".AsByteArray());
             Storage.Put(Storage.CurrentContext, key, callScript);
+            return true;
+        }
+
+        public static bool close(string name,byte[] addr)
+        {
+            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            byte[] token = Storage.Get(Storage.CurrentContext, key);
+            if (token.Length == 0) return false;
+
+            Storage.Delete(Storage.CurrentContext,key);
             return true;
         }
 
