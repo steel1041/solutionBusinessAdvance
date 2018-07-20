@@ -23,7 +23,7 @@ namespace BusinessContract
         public static extern object SDTContract(string method, object[] args);
 
         //标准合约
-        [Appcall("7089fdfd106dbb9679c686ca84c1d07ae3142c32")]
+        [Appcall("365f62b24e4bbb46f956fce9c627a6690ff07518")]
         public static extern object TokenizedContract(string method, object[] args);
 
         private const string CONFIG_KEY = "config_key";
@@ -63,7 +63,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-18";
+            var magicstr = "2018-07-19";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -421,8 +421,9 @@ namespace BusinessContract
             object[] arg = new object[1];
             arg[0] = name;
 
-            //保存标准
-            if ((string)TokenizedContract("name", arg) != "") return false;
+            //验证name
+            string str =  (string)TokenizedContract("name", arg);
+            if (str.Length > 0) return false;
 
             byte[] txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
             SARInfo info = new SARInfo();
@@ -463,10 +464,12 @@ namespace BusinessContract
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
 
-            //调用标准合约
+            //验证name
             object[] arg = new object[1];
             arg[0] = info.name;
-            if ((string)TokenizedContract("name", arg) != "") return false;
+            
+            string str = (string)TokenizedContract("name", arg);
+            if (str.Length > 0) return false;
 
             byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (to.Length == 0) return false;
