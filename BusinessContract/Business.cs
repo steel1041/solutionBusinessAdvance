@@ -16,14 +16,14 @@ namespace BusinessContract
         * map(str,address)       存储配置信息   key = 0x14+str
        */
         //管理员账户
-        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
+        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
         //SDT合约
-        [Appcall("cc4f14fa37e4691d5ceb87d7c160c1f2c189a625")]
+        [Appcall("59aae873270b0dcddae10d9e3701028a31d82433")]
         public static extern object SDTContract(string method, object[] args);
 
         //标准合约
-        [Appcall("3435de93761256a7074b497fb3f4fac1120042c4")]
+        [Appcall("365f62b24e4bbb46f956fce9c627a6690ff07518")]
         public static extern object TokenizedContract(string method, object[] args);
 
         private const string CONFIG_KEY = "config_key";
@@ -63,7 +63,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-18";
+            var magicstr = "2018-07-19";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -421,8 +421,9 @@ namespace BusinessContract
             object[] arg = new object[1];
             arg[0] = name;
 
-            //保存标准
-            if ((string)TokenizedContract("name", arg) != "") return false;
+            //验证name
+            string str =  (string)TokenizedContract("name", arg);
+            if (str.Length > 0) return false;
 
             byte[] txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
             SARInfo info = new SARInfo();
@@ -463,10 +464,12 @@ namespace BusinessContract
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
 
-            //调用标准合约
+            //验证name
             object[] arg = new object[1];
             arg[0] = info.name;
-            if ((string)TokenizedContract("name", arg) != "") return false;
+            
+            string str = (string)TokenizedContract("name", arg);
+            if (str.Length > 0) return false;
 
             byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (to.Length == 0) return false;
