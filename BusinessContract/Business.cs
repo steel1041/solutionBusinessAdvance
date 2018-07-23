@@ -16,14 +16,14 @@ namespace BusinessContract
         * map(str,address)       存储配置信息   key = 0x14+str
        */
         //管理员账户
-        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
+        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
 
         //SDT合约
-        [Appcall("59aae873270b0dcddae10d9e3701028a31d82433")]
+        [Appcall("cc4f14fa37e4691d5ceb87d7c160c1f2c189a625")]
         public static extern object SDTContract(string method, object[] args);
 
         //标准合约
-        [Appcall("7089fdfd106dbb9679c686ca84c1d07ae3142c32")]
+        [Appcall("3435de93761256a7074b497fb3f4fac1120042c4")]
         public static extern object TokenizedContract(string method, object[] args);
 
         private const string CONFIG_KEY = "config_key";

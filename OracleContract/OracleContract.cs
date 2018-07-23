@@ -6,10 +6,11 @@ using System.Numerics;
 using Neo.SmartContract.Framework.Services.System;
 
 namespace OracleContract
+
 {
     public class OracleContract : SmartContract
     {
-        //管理员账户
+        //管理员账户 
         private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
 
         private const string CONFIG_NEO_PRICE = "neo_price";
@@ -24,8 +25,7 @@ namespace OracleContract
         //B端参数配置
         private const string CONFIG_LIQUIDATION_RATE_B = "liqu_rate_b";
         private const string CONFIG_WARNING_RATE_B = "warning_rate_b";
-
-
+        
         public static Object Main(string operation, params object[] args)
         {
             var callscript = ExecutionEngine.CallingScriptHash;
@@ -83,8 +83,7 @@ namespace OracleContract
                 byte[] account = Storage.Get(Storage.CurrentContext, CONFIG_ACCOUNT);
                  
                 BigInteger price = (BigInteger)args[2];
-
-
+                
 
                 //允许合约或者授权账户调用
                 if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || from != account)) return false;
@@ -94,10 +93,38 @@ namespace OracleContract
              
             if (operation == "getPrice")
             {
-                if (args.Length != 1) return false;
+                if (args.Length != 1) return false; 
+
 
                 string key = (string)args[0];
                   
+                return getPrice(key); 
+            }
+
+
+            //设置锚定物对应美元汇率
+            if (operation == "setExchangeRate")
+            {
+                if (args.Length != 3) return false;
+
+                string key = (string)args[0];
+
+                byte[] from = (byte[])args[1];
+
+                if (!Runtime.CheckWitness(from)) return false;
+
+                BigInteger rate = (BigInteger)args[2];
+
+                return setPrice(key ,rate);
+            }
+             
+            //获取锚定物对应美元汇率
+            if (operation == "getExchangeRate")
+            {
+                if (args.Length != 1) return false;
+
+                string key = (string)args[0];
+
                 return getPrice(key);
             }
              
@@ -107,6 +134,8 @@ namespace OracleContract
         public static bool setPrice(string key, BigInteger price)
         {
             if (key == null || key == "") return false;
+
+            if (price < 0) return false;
               
             Storage.Put(Storage.CurrentContext, key, price);
             return true;
@@ -133,6 +162,28 @@ namespace OracleContract
 
             return value;
         }
+
+        //获取各节点平均后的最终价格
+        public static BigInteger getFinalPrice(string key)
+        {
+            BigInteger sum = 0;
+            int count = 0;
+            for (int i = 0; i < 5; i++)
+            {
+                string k = key + i.ToString();
+                BigInteger price = Storage.Get(Storage.CurrentContext,k).AsBigInteger();
+
+                if (price > 0)
+                {
+                    sum = sum + price;
+                    count++;
+                }  
+            }
+
+            BigInteger finalPrice = sum / count;
+
+            return finalPrice;
+        } 
 
     }
 }
