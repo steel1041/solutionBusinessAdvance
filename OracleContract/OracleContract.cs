@@ -11,7 +11,7 @@ namespace OracleContract
     public class OracleContract : SmartContract
     {
         //管理员账户 
-        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
+        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
         private const string CONFIG_NEO_PRICE = "neo_price";
         private const string CONFIG_GAS_PRICE = "gas_price";
@@ -19,18 +19,18 @@ namespace OracleContract
         private const string CONFIG_ACCOUNT = "account_key";
 
         //C端参数配置
-        private const string CONFIG_LIQUIDATION_RATE_C = "liqu_rate_c";
+        private const string CONFIG_LIQUIDATION_RATE_C = "liquidate_rate_c";
         private const string CONFIG_WARNING_RATE_C = "warning_rate_c";
          
         //B端参数配置
-        private const string CONFIG_LIQUIDATION_RATE_B = "liqu_rate_b";
+        private const string CONFIG_LIQUIDATION_RATE_B = "liquidate_rate_b";
         private const string CONFIG_WARNING_RATE_B = "warning_rate_b";
         
         public static Object Main(string operation, params object[] args)
         {
             var callscript = ExecutionEngine.CallingScriptHash;
 
-            var magicstr = "2018-07-04 15:16";
+            var magicstr = "2018-07-24 15:16";
 
             if (operation == "setAccount")
             {
@@ -71,7 +71,12 @@ namespace OracleContract
                   
                 return getConfig(key);
             }
-             
+            /* 设置代币价格  
+            *  neo_price    50*100
+            *  gas_price    20*100  
+            *  sdt_price    0.08*100
+            *  
+            */
             if (operation == "setPrice")
             {
                 if (args.Length != 3) return false;
@@ -90,44 +95,54 @@ namespace OracleContract
                   
                   return setPrice(key, price);
             }
-             
             if (operation == "getPrice")
             {
                 if (args.Length != 1) return false; 
-
-
                 string key = (string)args[0];
                   
                 return getPrice(key); 
             }
 
 
-            //设置锚定物对应美元汇率
-            if (operation == "setExchangeRate")
+            //设置锚定物对应100美元汇率
+            /*  
+             *  anchor_type_usd    100
+             *  anchor_type_cny    680  
+             *  anchor_type_eur    80
+             *  anchor_type_jpy    10000
+             */
+            if (operation == "setAnchorPrice")
             {
-                if (args.Length != 3) return false;
+                if (args.Length != 2) return false;
 
                 string key = (string)args[0];
 
-                byte[] from = (byte[])args[1];
+                if (!Runtime.CheckWitness(admin)) return false;
 
-                if (!Runtime.CheckWitness(from)) return false;
+                BigInteger price = (BigInteger)args[1];
 
-                BigInteger rate = (BigInteger)args[2];
-
-                return setPrice(key ,rate);
+                return setAnchorPrice(key ,price);
             }
              
             //获取锚定物对应美元汇率
-            if (operation == "getExchangeRate")
+            if (operation == "getAnchorPrice")
             {
                 if (args.Length != 1) return false;
 
                 string key = (string)args[0];
 
-                return getPrice(key);
+                return getAnchorPrice(key);
             }
-             
+
+            return true;
+        }
+
+
+        public static bool setAnchorPrice(string key, BigInteger price)
+        {
+            if (key == null || key == "") return false;
+
+            Storage.Put(Storage.CurrentContext, key, price);
             return true;
         }
 
@@ -143,6 +158,13 @@ namespace OracleContract
 
         public static BigInteger getPrice(string key)
         { 
+            BigInteger price = Storage.Get(Storage.CurrentContext, key).AsBigInteger();
+
+            return price;
+        }
+
+        public static BigInteger getAnchorPrice(string key)
+        {
             BigInteger price = Storage.Get(Storage.CurrentContext, key).AsBigInteger();
 
             return price;
@@ -164,26 +186,26 @@ namespace OracleContract
         }
 
         //获取各节点平均后的最终价格
-        public static BigInteger getFinalPrice(string key)
-        {
-            BigInteger sum = 0;
-            int count = 0;
-            for (int i = 0; i < 5; i++)
-            {
-                string k = key + i.ToString();
-                BigInteger price = Storage.Get(Storage.CurrentContext,k).AsBigInteger();
+        //public static BigInteger getFinalPrice(string key)
+        //{
+        //    BigInteger sum = 0;
+        //    int count = 0;
+        //    for (int i = 0; i < 5; i++)
+        //    {
+        //        string k = key + i.ToString();
+        //        BigInteger price = Storage.Get(Storage.CurrentContext,k).AsBigInteger();
 
-                if (price > 0)
-                {
-                    sum = sum + price;
-                    count++;
-                }  
-            }
+        //        if (price > 0)
+        //        {
+        //            sum = sum + price;
+        //            count++;
+        //        }  
+        //    }
 
-            BigInteger finalPrice = sum / count;
+        //    BigInteger finalPrice = sum / count;
 
-            return finalPrice;
-        } 
+        //    return finalPrice;
+        //} 
 
     }
 }

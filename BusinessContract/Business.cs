@@ -26,10 +26,13 @@ namespace BusinessContract
         [Appcall("365f62b24e4bbb46f956fce9c627a6690ff07518")]
         public static extern object TokenizedContract(string method, object[] args);
 
-        private const string CONFIG_KEY = "config_key";
+        //Oracle合约
+        [Appcall("8706fee7bc1a457f2fa28c7a4966f67b8bb1ab40")]
+        public static extern object OracleContract(string method, object[] args);
+
 
         /*Config 相关*/
-        private const string CONFIG_SDT_PRICE = "config_sdt_price";
+        private const string CONFIG_SDT_PRICE = "sdt_price";
 
         //最低抵押率
         private const string CONFIG_SDT_RATE = "config_sdt_rate";
@@ -45,6 +48,7 @@ namespace BusinessContract
         public enum ConfigTranType
         {
             TRANSACTION_TYPE_OPEN = 1,//建仓
+            TRANSACTION_TYPE_INIT,    //初始化代币
             TRANSACTION_TYPE_RESERVE,//锁仓
             TRANSACTION_TYPE_EXPANDE,//提取
             TRANSACTION_TYPE_WITHDRAW,//释放
@@ -63,7 +67,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-19";
+            var magicstr = "2018-07-25";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -79,14 +83,15 @@ namespace BusinessContract
                 }
                 if (operation == "openSAR4B")
                 {
-                    if (args.Length != 4) return false;
+                    if (args.Length != 5) return false;
                     string name = (string)args[0];
                     string symbol = (string)args[1];
                     byte decimals = (byte)args[2];
                     byte[] addr = (byte[])args[3];
+                    string anchor = (string)args[4];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return openSAR4B(name,symbol,decimals,addr);
+                    return openSAR4B(name,symbol,decimals,addr,anchor);
                 }
                 if (operation == "initToken")
                 {
@@ -310,13 +315,23 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
+            //调用Oracle,查询SDT价格，如：8$=价格*100
+            object[] arg = new object[1];
+            arg[0] = CONFIG_SDT_PRICE;
+            BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
+
+            //调用Oracle,查询锚定价格，如：100$=价格*100
+            arg = new object[1];
+            arg[0] = info.anchor;
+            BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+
             //当前SDT美元价格，需要从价格中心获取
-            BigInteger sdtPrice = getConfig(CONFIG_SDT_PRICE);
+            //BigInteger sdtPrice = getConfig(CONFIG_SDT_PRICE);
             //当前兑换率，需要从配置中心获取
             BigInteger rate = getConfig(CONFIG_SDT_RATE);
 
             //计算已经兑换过的SDT量
-            BigInteger hasDrawSDT = hasDrawed * rate / (100 * sdtPrice);
+            BigInteger hasDrawSDT = hasDrawed * rate * 100 / (sdt_price * anchor_price);
 
             //释放的总量大于已经剩余，不能操作
             if (value > locked - hasDrawSDT) return false;
@@ -408,7 +423,7 @@ namespace BusinessContract
         }
 
         /*开启一个新的债仓*/
-        public static bool openSAR4B(string name, string symbol,byte decimals,byte[] addr)
+        public static bool openSAR4B(string name, string symbol,byte decimals,byte[] addr,string anchor)
         {
             if (addr.Length != 20) return false;
 
@@ -428,13 +443,14 @@ namespace BusinessContract
             byte[] txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
             SARInfo info = new SARInfo();
             info.symbol = symbol;
-            info.decimals = decimals;
+            info.decimals = 8;
             info.name = name;
             info.hasDrawed = 0;
             info.locked = 0;
             info.owner = addr;
             info.txid = txid;
             info.status = 1;
+            info.anchor = anchor;
 
             //保存SAR
             Storage.Put(Storage.CurrentContext,key,Helper.Serialize(info));
@@ -450,8 +466,6 @@ namespace BusinessContract
             detail.hasDrawed = 0;
 
             Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
-
-            //Storage.Put(Storage.CurrentContext, new byte[] { 0x14 }.Concat(addr),"sarinfo");
             return true;
         }
 
@@ -496,6 +510,19 @@ namespace BusinessContract
             if (!(bool)TokenizedContract("init", arg)) return false;
 
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
+
+            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
+            //交易详细信息
+            SARTransferDetail detail = new SARTransferDetail();
+            detail.from = addr;
+            detail.sarTxid = info.txid;
+            detail.txid = txid;
+            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_INIT;
+            detail.operated = 0;
+            detail.hasLocked = 0;
+            detail.hasDrawed = 0;
+
+            Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
             return true;
         }
 
@@ -527,10 +554,6 @@ namespace BusinessContract
 
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
 
-            byte[] used = Storage.Get(Storage.CurrentContext, txid);
-            /*判断txid是否已被使用*/
-            if (used.Length != 0) return false;
-
             info.locked = info.locked + value;
             BigInteger currLock = info.locked;
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
@@ -546,8 +569,6 @@ namespace BusinessContract
             detail.txid = txid;
             Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
 
-            /*记录txid 已被使用*/
-            Storage.Put(Storage.CurrentContext, txid, addr);
             return true;
         }
 
@@ -570,16 +591,26 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
-            BigInteger sdt_price = getConfig(CONFIG_SDT_PRICE);
+            //调用Oracle,查询SDT价格，如：8$=价格*100
+            object[] arg = new object[1];
+            arg[0] = CONFIG_SDT_PRICE;
+            BigInteger sdt_price =  (BigInteger)OracleContract("getPrice",arg);
+
+            //调用Oracle,查询锚定价格，如：100$=价格*100
+            arg = new object[1];
+            arg[0] = info.anchor;
+            BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+
+            //BigInteger sdt_price = getConfig(CONFIG_SDT_PRICE);
+
             BigInteger sdt_rate = getConfig(CONFIG_SDT_RATE); ;
 
-            BigInteger sdusd_limit = sdt_price * locked * 100 / sdt_rate;
+            BigInteger sdusd_limit = sdt_price * anchor_price * locked / (sdt_rate * 100);
 
             if (sdusd_limit < hasDrawed + value) return false;
 
-
             //调用标准增发
-            object[] arg = new object[3];
+            arg = new object[3];
             arg[0] = name;
             arg[1] = addr;
             arg[2] = value;
@@ -627,10 +658,20 @@ namespace BusinessContract
             BigInteger balance =  (BigInteger)TokenizedContract("balanceOf",arg);
             if (balance <= 0) return false;
 
-            BigInteger sdt_price = getConfig(CONFIG_SDT_PRICE);
+            //调用Oracle,查询SDT价格，如：8$=价格*100
+            arg = new object[1];
+            arg[0] = CONFIG_SDT_PRICE;
+            BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
+
+            //调用Oracle,查询锚定价格，如：100$=价格*100
+            arg = new object[1];
+            arg[0] = info.anchor;
+            BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+
+            //BigInteger sdt_price = getConfig(CONFIG_SDT_PRICE);
             BigInteger sdt_rate = getConfig(CONFIG_SDT_RATE); ;
             //计算可赎回的SDT
-            BigInteger redeem = (balance * sdt_rate) / (info.locked * sdt_price * 100);
+            BigInteger redeem = (balance * sdt_rate * 100) / (info.locked * sdt_price * anchor_price);
 
             //销毁用户的稳定代币
             arg = new object[3];
@@ -675,6 +716,9 @@ namespace BusinessContract
 
             //1安全  2不安全 3不可用   
             public int status;
+
+            //锚定物类型
+            public string anchor;
         }
 
         public class SARTransferDetail
