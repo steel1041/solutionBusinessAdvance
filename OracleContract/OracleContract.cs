@@ -72,9 +72,9 @@ namespace OracleContract
                 return getConfig(key);
             }
             /* 设置代币价格  
-            *  neo_price    50*100
-            *  gas_price    20*100  
-            *  sdt_price    0.08*100
+            *  neo_price    50*100000000
+            *  gas_price    20*100000000  
+            *  sdt_price    0.08*100000000
             *  
             */
             if (operation == "setPrice")
@@ -104,12 +104,12 @@ namespace OracleContract
             }
 
 
-            //设置锚定物对应100美元汇率
+            //设置锚定物对应100000000美元汇率
             /*  
-             *  anchor_type_usd    100
-             *  anchor_type_cny    680  
-             *  anchor_type_eur    80
-             *  anchor_type_jpy    10000
+             *  anchor_type_usd    1*100000000
+             *  anchor_type_cny    6.8*100000000  
+             *  anchor_type_eur    1.2*100000000
+             *  anchor_type_jpy    120*100000000
              */
             if (operation == "setAnchorPrice")
             {

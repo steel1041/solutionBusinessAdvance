@@ -44,6 +44,8 @@ namespace BusinessContract
 
         private const string SERVICE_FEE = "service_fee";
 
+        private const ulong FOURTEEN_POWER = 100000000000000;
+
         //交易类型
         public enum ConfigTranType
         {
@@ -315,23 +317,21 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
-            //调用Oracle,查询SDT价格，如：8$=价格*100
+            //调用Oracle,查询SDT价格，如：8$=价格*100000000
             object[] arg = new object[1];
             arg[0] = CONFIG_SDT_PRICE;
             BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
 
-            //调用Oracle,查询锚定价格，如：100$=价格*100
+            //调用Oracle,查询锚定价格，如：100$=价格*100000000
             arg = new object[1];
             arg[0] = info.anchor;
             BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
 
-            //当前SDT美元价格，需要从价格中心获取
-            //BigInteger sdtPrice = getConfig(CONFIG_SDT_PRICE);
             //当前兑换率，需要从配置中心获取
             BigInteger rate = getConfig(CONFIG_SDT_RATE);
 
             //计算已经兑换过的SDT量
-            BigInteger hasDrawSDT = hasDrawed * rate * 100 / (sdt_price * anchor_price);
+            BigInteger hasDrawSDT = hasDrawed * rate * FOURTEEN_POWER / (sdt_price * anchor_price);
 
             //释放的总量大于已经剩余，不能操作
             if (value > locked - hasDrawSDT) return false;
@@ -356,7 +356,7 @@ namespace BusinessContract
                 param = new object[2];
                 param[0] = name;
                 param[1] = addr;
-                if (!(bool)SDTContract("close", param)) return false;
+                if (!(bool)TokenizedContract("close", param)) return false;
             }
 
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
@@ -591,21 +591,19 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
-            //调用Oracle,查询SDT价格，如：8$=价格*100
+            //调用Oracle,查询SDT价格，如：8$=价格*100000000
             object[] arg = new object[1];
             arg[0] = CONFIG_SDT_PRICE;
             BigInteger sdt_price =  (BigInteger)OracleContract("getPrice",arg);
 
-            //调用Oracle,查询锚定价格，如：100$=价格*100
+            //调用Oracle,查询锚定价格，如：100$=价格*100000000
             arg = new object[1];
             arg[0] = info.anchor;
             BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
 
-            //BigInteger sdt_price = getConfig(CONFIG_SDT_PRICE);
-
             BigInteger sdt_rate = getConfig(CONFIG_SDT_RATE); ;
 
-            BigInteger sdusd_limit = sdt_price * anchor_price * locked / (sdt_rate * 100);
+            BigInteger sdusd_limit = sdt_price * anchor_price * locked / (sdt_rate * FOURTEEN_POWER);
 
             if (sdusd_limit < hasDrawed + value) return false;
 
@@ -658,20 +656,19 @@ namespace BusinessContract
             BigInteger balance =  (BigInteger)TokenizedContract("balanceOf",arg);
             if (balance <= 0) return false;
 
-            //调用Oracle,查询SDT价格，如：8$=价格*100
+            //调用Oracle,查询SDT价格，如：8$=价格*100000000
             arg = new object[1];
             arg[0] = CONFIG_SDT_PRICE;
             BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
 
-            //调用Oracle,查询锚定价格，如：100$=价格*100
+            //调用Oracle,查询锚定价格，如：100$=价格*100000000
             arg = new object[1];
             arg[0] = info.anchor;
             BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
 
-            //BigInteger sdt_price = getConfig(CONFIG_SDT_PRICE);
             BigInteger sdt_rate = getConfig(CONFIG_SDT_RATE); ;
             //计算可赎回的SDT
-            BigInteger redeem = (balance * sdt_rate * 100) / (info.locked * sdt_price * anchor_price);
+            BigInteger redeem = (balance * sdt_rate * FOURTEEN_POWER) / (info.locked * sdt_price * anchor_price);
 
             //销毁用户的稳定代币
             arg = new object[3];
@@ -680,13 +677,11 @@ namespace BusinessContract
             arg[2] = balance;
             if (!(bool)TokenizedContract("destory", arg)) return false;
 
-        
             object[] param = new object[3];
             param[0] = from;
             param[1] = addr;
             param[2] = redeem;
             if (!(bool)SDTContract("transfer_contract", param)) return false;
-
             return true;
         }
 
