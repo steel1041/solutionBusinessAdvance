@@ -22,8 +22,8 @@ namespace ServiceContract
         //管理员账户
         private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
 
-        [DisplayName("transfer")]
-        public static event Action<byte[], byte[], BigInteger> Transferred;
+        [DisplayName("transfer_name")]
+        public static event Action<string, byte[], byte[], BigInteger> Transferred;
 
         public static Object Main(string operation, params object[] args)
         {
@@ -156,7 +156,7 @@ namespace ServiceContract
                     if (!Runtime.CheckWitness(addr)) return false;
                     //判断调用者是否是跳板合约
                     byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
-                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false; 
                     return destoryByBu(name,addr, value);
                 }
                 //设置跳板调用合约地址
@@ -370,7 +370,7 @@ namespace ServiceContract
             //记录交易信息
             setTxInfo(name, fromKey, toKey, value);
             //notify
-            Transferred(fromKey, toKey, value);
+            Transferred(name, fromKey, toKey, value);
             return true;
         }
 

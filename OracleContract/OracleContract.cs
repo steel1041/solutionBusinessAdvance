@@ -11,7 +11,7 @@ namespace OracleContract
     public class OracleContract : SmartContract
     {
         //管理员账户 
-        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
+        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
 
         private const string CONFIG_NEO_PRICE = "neo_price";
         private const string CONFIG_GAS_PRICE = "gas_price";
