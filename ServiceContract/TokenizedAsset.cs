@@ -22,8 +22,8 @@ namespace ServiceContract
         //管理员账户
         private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
 
-        [DisplayName("transfer")]
-        public static event Action<byte[], byte[], BigInteger> Transferred;
+        [DisplayName("sarTransfer")]
+        public static event Action<byte[], byte[], byte[], BigInteger> Transferred;
 
         public static Object Main(string operation, params object[] args)
         {
@@ -369,8 +369,9 @@ namespace ServiceContract
             }
             //记录交易信息
             setTxInfo(name, fromKey, toKey, value);
+
             //notify
-            Transferred(fromKey, toKey, value);
+            Transferred(name.AsByteArray(),fromKey, toKey, value);
             return true;
         }
 
