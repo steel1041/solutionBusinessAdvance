@@ -22,13 +22,13 @@ namespace BusinessContract
 
         /* name,addr,sartxid,txid,type,operated*/
         [DisplayName("sarOperator")]
-        public static event Action<byte[],byte[], byte[], byte[], BigInteger,BigInteger> Operated;
+        public static event Action<byte[], byte[], byte[], byte[], BigInteger, BigInteger> Operated;
 
         /*Config 相关*/
-        private const string CONFIG_SDT_PRICE = "sdt_price";
+        private const string CONFIG_SDS_PRICE = "sds_price";
 
         //最低抵押率
-        private const string CONFIG_SDT_RATE = "config_sdt_rate";
+        private const string CONFIG_SDS_RATE = "config_sds_rate";
 
         //最低抵押率
         private const string CONFIG_LIMIT_RATE = "config_limit_rate";
@@ -60,10 +60,11 @@ namespace BusinessContract
             SAR_STATUS_RISK,        //危险
             SAR_STATUS_CLOSE,       //不可用
         }
-        
+
+
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-25"; 
+            var magicstr = "2018-07-25";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -88,7 +89,7 @@ namespace BusinessContract
                     byte[] tokenizedAssetID = (byte[])args[5];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return openSAR4B(name,symbol,decimals,addr,anchor);
+                    return openSAR4B(name, symbol, decimals, addr, anchor, tokenizedAssetID);
                 }
                 if (operation == "initToken")
                 {
@@ -98,7 +99,7 @@ namespace BusinessContract
                     byte[] tokenizedAssetID = (byte[])args[2];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return initToken(addr);
+                    return initToken(addr, sdsAssetID, tokenizedAssetID);
                 }
                 //储备，锁定资产
                 if (operation == "reserve")
@@ -111,7 +112,7 @@ namespace BusinessContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
 
-                    return reserve(name,addr, value, sdsAssetID);
+                    return reserve(name, addr, value, sdsAssetID);
                 }
                 //增加
                 if (operation == "expande")
@@ -124,7 +125,7 @@ namespace BusinessContract
                     byte[] tokenizedAssetID = (byte[])args[4];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return expande(name,addr,value);
+                    return expande(name, addr, value, oracleAssetID, tokenizedAssetID);
                 }
                 //擦除
                 if (operation == "contract")
@@ -136,18 +137,21 @@ namespace BusinessContract
                     byte[] tokenizedAssetID = (byte[])args[3];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return contract(name, addr, value);
+                    return contract(name, addr, value, tokenizedAssetID);
                 }
                 //提现
                 if (operation == "withdraw")
                 {
-                    if (args.Length != 3) return false;
+                    if (args.Length != 6) return false;
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
                     BigInteger value = (BigInteger)args[2];
+                    byte[] oracleAssetID = (byte[])args[3];
+                    byte[] sdsAssetID = (byte[])args[4];
+                    byte[] tokenizedAssetID = (byte[])args[5];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return withdraw(name, addr, value);
+                    return withdraw(name, addr, value, oracleAssetID, sdsAssetID, tokenizedAssetID);
                 }
                 if (operation == "setAccount")
                 {
@@ -180,7 +184,7 @@ namespace BusinessContract
                     byte[] tokenizedAssetID = (byte[])args[4];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return redeem(name,addr);
+                    return redeem(name, addr, sdsAssetID, oracleAssetID, tokenizedAssetID);
 
                 }
                 if (operation == "getConfigTest")
@@ -281,7 +285,7 @@ namespace BusinessContract
             return info;
         }
 
-        public static bool settingSAR(string name,byte[] addr)
+        public static bool settingSAR(string name, byte[] addr)
         {
             if (addr.Length != 20) return false;
             var key = new byte[] { 0x12 }.Concat(addr);
@@ -299,7 +303,7 @@ namespace BusinessContract
         }
 
         /*提现抵押资产*/
-        public static bool withdraw(string name, byte[] addr, BigInteger value)
+        public static bool withdraw(string name, byte[] addr, BigInteger value, byte[] oracleAssetID, byte[] sdsAssetID, byte[] tokenizedAssetID)
         {
             if (addr.Length != 20) return false;
             if (value == 0) return false;
@@ -321,18 +325,21 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
-            //调用Oracle,查询SDT价格，如：8$=价格*100
+            //调用Oracle,查询SDT价格，如：8$=价格*100000000
             object[] arg = new object[1];
-            arg[0] = CONFIG_SDT_PRICE;
+            arg[0] = CONFIG_SDS_PRICE;
+
+            var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+
             BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
 
-            //调用Oracle,查询锚定价格，如：100$=价格*100
+            //调用Oracle,查询锚定价格，如：100$=价格*100000000
             arg = new object[1];
             arg[0] = info.anchor;
             BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
 
             //当前兑换率，需要从配置中心获取
-            BigInteger rate = getConfig(CONFIG_SDT_RATE);
+            BigInteger rate = getConfig(CONFIG_SDS_RATE);
 
             //计算已经兑换过的SDT量
             BigInteger hasDrawSDT = hasDrawed * rate * FOURTEEN_POWER / (sdt_price * anchor_price);
@@ -349,7 +356,6 @@ namespace BusinessContract
             param[0] = from;
             param[1] = addr;
             param[2] = value;
-            if (!(bool)SDTContract("transfer_contract", param)) return false;
 
             var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
 
@@ -364,7 +370,9 @@ namespace BusinessContract
                 param = new object[2];
                 param[0] = name;
                 param[1] = addr;
-                if (!(bool)SDTContract("close", param)) return false;
+
+                var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
+                if (!(bool)TokenizedContract("close", param)) return false;
             }
 
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
@@ -411,6 +419,8 @@ namespace BusinessContract
             arg[1] = addr;
             arg[2] = value;
 
+            var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
+
             if (!(bool)TokenizedContract("destory", arg)) return false;
 
             info.hasDrawed = hasDrawed - value;
@@ -431,7 +441,7 @@ namespace BusinessContract
         }
 
         /*开启一个新的债仓*/
-        public static bool openSAR4B(string name, string symbol,byte decimals,byte[] addr,string anchor, byte[] tokenizedAssetID)
+        public static bool openSAR4B(string name, string symbol, byte decimals, byte[] addr, string anchor, byte[] tokenizedAssetID)
         {
             if (addr.Length != 20) return false;
 
@@ -445,7 +455,8 @@ namespace BusinessContract
             arg[0] = name;
 
             //验证name
-            string str =  (string)TokenizedContract("name", arg);
+            var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
+            string str = (string)TokenizedContract("name", arg);
 
             if (str.Length > 0) return false;
 
@@ -462,7 +473,7 @@ namespace BusinessContract
             info.anchor = anchor;
 
             //保存SAR
-            Storage.Put(Storage.CurrentContext,key,Helper.Serialize(info));
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
 
             //交易详细信息
             SARTransferDetail detail = new SARTransferDetail();
@@ -477,7 +488,7 @@ namespace BusinessContract
             Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
 
             //触发操作事件
-            Operated(name.AsByteArray(),addr,txid,txid, (int)ConfigTranType.TRANSACTION_TYPE_OPEN, 0);
+            Operated(name.AsByteArray(), addr, txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_OPEN, 0);
             return true;
         }
 
@@ -510,7 +521,9 @@ namespace BusinessContract
             arg[0] = addr;
             arg[1] = to;
             arg[2] = serviceFree;
-            if (!(bool)SDTContract("transfer", arg)) return false;
+
+            var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
+            if (!(bool)SDSContract("transfer", arg)) return false;
 
             info.locked = info.locked + serviceFree;
 
@@ -519,7 +532,7 @@ namespace BusinessContract
             arg[1] = info.symbol;
             arg[2] = info.decimals;
             arg[3] = addr;
-            
+
             //保存标准
             if (!(bool)TokenizedContract("init", arg)) return false;
 
@@ -544,7 +557,7 @@ namespace BusinessContract
         }
 
         /*向债仓锁定数字资产*/
-        public static bool reserve(string name,byte[] addr, BigInteger value, byte[] sdsAssetID)
+        public static bool reserve(string name, byte[] addr, BigInteger value, byte[] sdsAssetID)
         {
             if (addr.Length != 20) return false;
             if (value == 0) return false;
@@ -567,7 +580,9 @@ namespace BusinessContract
             arg[1] = to;
             arg[2] = value;
 
-            if (!(bool)SDTContract("transfer", arg)) return false;
+            var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
+
+            if (!(bool)SDSContract("transfer", arg)) return false;
 
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
 
@@ -612,15 +627,18 @@ namespace BusinessContract
 
             //调用Oracle,查询SDT价格，如：8$=价格*100000000
             object[] arg = new object[1];
-            arg[0] = CONFIG_SDT_PRICE;
-            BigInteger sdt_price =  (BigInteger)OracleContract("getPrice",arg);
+            arg[0] = CONFIG_SDS_PRICE;
+
+            var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+
+            BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
 
             //调用Oracle,查询锚定价格，如：100$=价格*100000000
             arg = new object[1];
             arg[0] = info.anchor;
             BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
 
-            BigInteger sdt_rate = getConfig(CONFIG_SDT_RATE); ;
+            BigInteger sdt_rate = getConfig(CONFIG_SDS_RATE); ;
 
             BigInteger sdusd_limit = sdt_price * anchor_price * locked / (sdt_rate * FOURTEEN_POWER);
 
@@ -676,12 +694,17 @@ namespace BusinessContract
             object[] arg = new object[2];
             arg[0] = name;
             arg[1] = addr;
-            BigInteger balance =  (BigInteger)TokenizedContract("balanceOf",arg);
+
+            var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
+            BigInteger balance = (BigInteger)TokenizedContract("balanceOf", arg);
             if (balance <= 0) return false;
 
             //调用Oracle,查询SDT价格，如：8$=价格*100000000
             arg = new object[1];
-            arg[0] = CONFIG_SDT_PRICE;
+            arg[0] = CONFIG_SDS_PRICE;
+
+            var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+
             BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
 
             //调用Oracle,查询锚定价格，如：100$=价格*100000000
@@ -689,7 +712,7 @@ namespace BusinessContract
             arg[0] = info.anchor;
             BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
 
-            BigInteger sdt_rate = getConfig(CONFIG_SDT_RATE); ;
+            BigInteger sdt_rate = getConfig(CONFIG_SDS_RATE); ;
             //计算可赎回的SDT
             BigInteger redeem = (balance * sdt_rate * FOURTEEN_POWER) / (info.locked * sdt_price * anchor_price);
 
@@ -704,7 +727,21 @@ namespace BusinessContract
             param[0] = from;
             param[1] = addr;
             param[2] = redeem;
-            if (!(bool)SDTContract("transfer_contract", param)) return false;
+
+            var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
+
+            if (!(bool)SDSContract("transfer_contract", param)) return false;
+
+            //记录交易详细数据
+            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
+            SARTransferDetail detail = new SARTransferDetail();
+            detail.from = addr;
+            detail.sarTxid = info.txid;
+            detail.txid = txid;
+            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_REDEEM;
+            detail.operated = redeem;
+            detail.hasLocked = info.locked;
+            detail.hasDrawed = info.hasDrawed;
 
             Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
             //触发操作事件

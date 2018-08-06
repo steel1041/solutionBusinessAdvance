@@ -11,21 +11,21 @@ namespace OracleContract
     public class OracleContract : SmartContract
     {
         //管理员账户 
-        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
+        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
         private const string CONFIG_NEO_PRICE = "neo_price";
         private const string CONFIG_GAS_PRICE = "gas_price";
-        private const string CONFIG_SDT_PRICE = "sdt_price";
+        private const string CONFIG_SDS_PRICE = "sds_price";
         private const string CONFIG_ACCOUNT = "account_key";
 
         //C端参数配置
         private const string CONFIG_LIQUIDATION_RATE_C = "liquidate_rate_c";
         private const string CONFIG_WARNING_RATE_C = "warning_rate_c";
-         
+
         //B端参数配置
         private const string CONFIG_LIQUIDATION_RATE_B = "liquidate_rate_b";
         private const string CONFIG_WARNING_RATE_B = "warning_rate_b";
-        
+
         public static Object Main(string operation, params object[] args)
         {
             var callscript = ExecutionEngine.CallingScriptHash;
@@ -40,14 +40,14 @@ namespace OracleContract
 
                 byte[] account = (byte[])args[0];
 
-                Storage.Put(Storage.CurrentContext,CONFIG_ACCOUNT,account);
+                Storage.Put(Storage.CurrentContext, CONFIG_ACCOUNT, account);
 
                 return true;
             }
 
             if (operation == "getAccount")
             {
-                return Storage.Get(Storage.CurrentContext,CONFIG_ACCOUNT);
+                return Storage.Get(Storage.CurrentContext, CONFIG_ACCOUNT);
             }
 
             if (operation == "setConfig")
@@ -64,17 +64,17 @@ namespace OracleContract
             }
 
             if (operation == "getConfig")
-            { 
+            {
                 if (args.Length != 1) return false;
 
                 string key = (string)args[0];
-                  
+
                 return getConfig(key);
             }
             /* 设置代币价格  
             *  neo_price    50*100000000
             *  gas_price    20*100000000  
-            *  sdt_price    0.08*100000000
+            *  sds_price    0.08*100000000
             *  
             */
             if (operation == "setPrice")
@@ -86,21 +86,21 @@ namespace OracleContract
                 byte[] from = (byte[])args[1];
 
                 byte[] account = Storage.Get(Storage.CurrentContext, CONFIG_ACCOUNT);
-                 
+
                 BigInteger price = (BigInteger)args[2];
-                
+
 
                 //允许合约或者授权账户调用
                 if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || from != account)) return false;
-                  
-                  return setPrice(key, price);
+
+                return setPrice(key, price);
             }
             if (operation == "getPrice")
             {
-                if (args.Length != 1) return false; 
+                if (args.Length != 1) return false;
                 string key = (string)args[0];
-                  
-                return getPrice(key); 
+
+                return getPrice(key);
             }
 
 
@@ -121,9 +121,9 @@ namespace OracleContract
 
                 BigInteger price = (BigInteger)args[1];
 
-                return setAnchorPrice(key ,price);
+                return setAnchorPrice(key, price);
             }
-             
+
             //获取锚定物对应美元汇率
             if (operation == "getAnchorPrice")
             {
@@ -151,13 +151,13 @@ namespace OracleContract
             if (key == null || key == "") return false;
 
             if (price < 0) return false;
-              
+
             Storage.Put(Storage.CurrentContext, key, price);
             return true;
         }
 
         public static BigInteger getPrice(string key)
-        { 
+        {
             BigInteger price = Storage.Get(Storage.CurrentContext, key).AsBigInteger();
 
             return price;
@@ -174,7 +174,7 @@ namespace OracleContract
         {
             if (key == null || key == "") return false;
 
-            Storage.Put(Storage.CurrentContext, key, value); 
+            Storage.Put(Storage.CurrentContext, key, value);
             return true;
         }
 
