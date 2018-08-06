@@ -30,7 +30,7 @@ namespace OracleContract
         {
             var callscript = ExecutionEngine.CallingScriptHash;
 
-            var magicstr = "2018-07-24 15:16";
+            var magicstr = "2018-08-06 15:16";
 
             if (operation == "setAccount")
             {

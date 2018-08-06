@@ -20,14 +20,14 @@ namespace ServiceContract
         */
 
         //管理员账户
-        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
+        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
         [DisplayName("sarTransfer")]
         public static event Action<byte[], byte[], byte[], BigInteger> Transferred;
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-19";
+            var magicstr = "2018-08-06";
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 return false;

@@ -325,19 +325,27 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
-            //调用Oracle,查询SDT价格，如：8$=价格*100000000
-            object[] arg = new object[1];
-            arg[0] = CONFIG_SDS_PRICE;
 
-            var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+            object[] arg = new object[0];
+            BigInteger sdt_price = 0;
+            BigInteger anchor_price = 0;
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
 
-            BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
+                //调用Oracle,查询SDT价格，如：8$=价格*100000000
+                arg = new object[1];
+                arg[0] = CONFIG_SDS_PRICE;
+                sdt_price = (BigInteger)OracleContract("getPrice", arg);
+            }
 
-            //调用Oracle,查询锚定价格，如：100$=价格*100000000
-            arg = new object[1];
-            arg[0] = info.anchor;
-            BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
 
+                //调用Oracle,查询锚定价格，如：100$=价格*100000000
+                arg = new object[1];
+                arg[0] = info.anchor;
+                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+            }
             //当前兑换率，需要从配置中心获取
             BigInteger rate = getConfig(CONFIG_SDS_RATE);
 
@@ -534,7 +542,8 @@ namespace BusinessContract
             arg[3] = addr;
 
             //保存标准
-            if (!(bool)TokenizedContract("init", arg)) return false;
+            var TokenizedContract2 = (NEP5Contract)tokenizedAssetID.ToDelegate();
+            if (!(bool)TokenizedContract2("init", arg)) return false;
 
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
 
@@ -625,18 +634,29 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
-            //调用Oracle,查询SDT价格，如：8$=价格*100000000
-            object[] arg = new object[1];
-            arg[0] = CONFIG_SDS_PRICE;
+            BigInteger sdt_price = 0;
+            BigInteger anchor_price = 0;
 
-            var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+            object[] arg = new object[0];
 
-            BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
 
-            //调用Oracle,查询锚定价格，如：100$=价格*100000000
-            arg = new object[1];
-            arg[0] = info.anchor;
-            BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+                //调用Oracle,查询SDT价格，如：8$=价格*100000000
+                arg = new object[1];
+                arg[0] = CONFIG_SDS_PRICE;
+                sdt_price = (BigInteger)OracleContract("getPrice", arg);
+            }
+
+
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+
+                //调用Oracle,查询锚定价格，如：100$=价格*100000000
+                arg = new object[1];
+                arg[0] = info.anchor;
+                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+            }
 
             BigInteger sdt_rate = getConfig(CONFIG_SDS_RATE); ;
 
@@ -699,18 +719,26 @@ namespace BusinessContract
             BigInteger balance = (BigInteger)TokenizedContract("balanceOf", arg);
             if (balance <= 0) return false;
 
-            //调用Oracle,查询SDT价格，如：8$=价格*100000000
-            arg = new object[1];
-            arg[0] = CONFIG_SDS_PRICE;
+            BigInteger sdt_price = 0;
+            BigInteger anchor_price = 0;
 
-            var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
 
-            BigInteger sdt_price = (BigInteger)OracleContract("getPrice", arg);
+                //调用Oracle,查询SDT价格，如：8$=价格*100000000
+                arg = new object[1];
+                arg[0] = CONFIG_SDS_PRICE;
+                sdt_price = (BigInteger)OracleContract("getPrice", arg);
+            }
 
-            //调用Oracle,查询锚定价格，如：100$=价格*100000000
-            arg = new object[1];
-            arg[0] = info.anchor;
-            BigInteger anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+            {
+
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+                //调用Oracle,查询锚定价格，如：100$=价格*100000000
+                arg = new object[1];
+                arg[0] = info.anchor;
+                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+            }
 
             BigInteger sdt_rate = getConfig(CONFIG_SDS_RATE); ;
             //计算可赎回的SDT
@@ -721,7 +749,9 @@ namespace BusinessContract
             arg[0] = name;
             arg[1] = addr;
             arg[2] = balance;
-            if (!(bool)TokenizedContract("destory", arg)) return false;
+
+            var TokenizedContract2 = (NEP5Contract)tokenizedAssetID.ToDelegate();
+            if (!(bool)TokenizedContract2("destory", arg)) return false;
 
             object[] param = new object[3];
             param[0] = from;
