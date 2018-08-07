@@ -370,8 +370,8 @@ namespace ServiceContract
             //记录交易信息
             setTxInfo(name, fromKey, toKey, value);
 
-            //notify
-            Transferred(name.AsByteArray(), fromKey, toKey, value);
+            //notify,这里from,to无需加前缀
+            Transferred(name.AsByteArray(), from, to, value);
             return true;
         }
 
