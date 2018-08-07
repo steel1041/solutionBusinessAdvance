@@ -64,7 +64,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-07-25";
+            var magicstr = "2018-08-07";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -395,6 +395,9 @@ namespace BusinessContract
             detail.hasLocked = locked - value;
             detail.hasDrawed = hasDrawed;
             Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
+
+            //触发操作事件
+            Operated(name.AsByteArray(), addr, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_WITHDRAW, value);
             return true;
         }
 
@@ -445,6 +448,9 @@ namespace BusinessContract
             detail.hasDrawed = info.hasDrawed;
             detail.txid = txid;
             Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
+
+            //触发操作事件
+            Operated(name.AsByteArray(), addr, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_CONTRACT, value);
             return true;
         }
 
