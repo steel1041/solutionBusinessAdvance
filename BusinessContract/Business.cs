@@ -64,7 +64,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-08-07";
+            var magicstr = "2018-08-07 17:30";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -289,7 +289,7 @@ namespace BusinessContract
         {
             if (addr.Length != 20) return false;
             var key = new byte[] { 0x12 }.Concat(addr);
-            byte[] sar = Storage.Get(Storage.CurrentContext, name);
+            byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length == 0) return false;
 
             SARInfo info = (SARInfo)Helper.Deserialize(sar);
@@ -298,7 +298,22 @@ namespace BusinessContract
 
             info.status = (int)ConfigSARStatus.SAR_STATUS_CLOSE;
 
+            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
+
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
+            //记录交易详细数据
+            SARTransferDetail detail = new SARTransferDetail();
+            detail.from = addr;
+            detail.sarTxid = info.txid;
+            detail.txid = txid;
+            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_SHUT;
+            detail.operated = 0;
+            detail.hasLocked = info.locked;
+            detail.hasDrawed = info.hasDrawed;
+            Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
+
+            //触发操作事件
+            Operated(name.AsByteArray(), admin, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_SHUT, 0);
             return true;
         }
 
