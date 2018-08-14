@@ -313,7 +313,7 @@ namespace BusinessContract
             Storage.Put(Storage.CurrentContext, new byte[] { 0x13 }.Concat(txid), Helper.Serialize(detail));
 
             //触发操作事件
-            Operated(name.AsByteArray(), admin, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_SHUT, 0);
+            Operated(info.name.AsByteArray(), admin, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_SHUT, 0);
             return true;
         }
 
@@ -735,14 +735,26 @@ namespace BusinessContract
             //清算的币种
             string name = info.name;
 
-            //调用标准增发
+            //调用标准查询余额
             object[] arg = new object[2];
             arg[0] = name;
             arg[1] = addr;
+            BigInteger balance = 0;
+            {
+                var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
+                balance = (BigInteger)TokenizedContract("balanceOf", arg);
+                if (balance <= 0) return false;
+            }
 
-            var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
-            BigInteger balance = (BigInteger)TokenizedContract("balanceOf", arg);
-            if (balance <= 0) return false;
+            BigInteger totalSupply = 0;
+            {
+                arg = new object[1];
+                arg[0] = name;
+                var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
+                totalSupply = (BigInteger)TokenizedContract("totalSupply", arg);
+                if (totalSupply <= 0) return false;
+            }
+
 
             BigInteger sds_price = 0;
             BigInteger anchor_price = 0;
@@ -767,7 +779,9 @@ namespace BusinessContract
 
             BigInteger sds_rate = getConfig(CONFIG_SDS_RATE); ;
             //计算可赎回的SDS
-            BigInteger redeem = (balance * sds_rate * FOURTEEN_POWER) / (info.locked * sds_price * anchor_price);
+            BigInteger redeem = balance * info.locked/ totalSupply;
+
+            if (redeem <= 0) return false;
 
             //销毁用户的稳定代币
             arg = new object[3];
@@ -786,6 +800,11 @@ namespace BusinessContract
             var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
 
             if (!(bool)SDSContract("transfer_contract", param)) return false;
+
+            info.locked = info.locked - redeem;
+            info.hasDrawed = info.hasDrawed - balance;
+
+            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
 
             //记录交易详细数据
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
