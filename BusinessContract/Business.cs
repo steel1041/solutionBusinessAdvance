@@ -64,7 +64,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-08-07 17:30";
+            var magicstr = "2018-08-14 17:30";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -177,14 +177,14 @@ namespace BusinessContract
                 if (operation == "redeem")
                 {
                     if (args.Length != 5) return false;
-                    string name = (string)args[0];
-                    byte[] addr = (byte[])args[1];
+                    byte[] addr = (byte[])args[0];
+                    byte[] sarAddr = (byte[])args[1];
                     byte[] sdsAssetID = (byte[])args[2];
                     byte[] oracleAssetID = (byte[])args[3];
                     byte[] tokenizedAssetID = (byte[])args[4];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return redeem(name, addr, sdsAssetID, oracleAssetID, tokenizedAssetID);
+                    return redeem(addr, sarAddr, sdsAssetID, oracleAssetID, tokenizedAssetID);
 
                 }
                 if (operation == "getConfigTest")
@@ -342,15 +342,15 @@ namespace BusinessContract
 
 
             object[] arg = new object[0];
-            BigInteger sdt_price = 0;
+            BigInteger sds_price = 0;
             BigInteger anchor_price = 0;
             {
                 var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
 
-                //调用Oracle,查询SDT价格，如：8$=价格*100000000
+                //调用Oracle,查询SDS价格，如：8$=价格*100000000
                 arg = new object[1];
                 arg[0] = CONFIG_SDS_PRICE;
-                sdt_price = (BigInteger)OracleContract("getPrice", arg);
+                sds_price = (BigInteger)OracleContract("getPrice", arg);
             }
 
             {
@@ -364,11 +364,11 @@ namespace BusinessContract
             //当前兑换率，需要从配置中心获取
             BigInteger rate = getConfig(CONFIG_SDS_RATE);
 
-            //计算已经兑换过的SDT量
-            BigInteger hasDrawSDT = hasDrawed * rate * FOURTEEN_POWER / (sdt_price * anchor_price);
+            //计算已经兑换过的SDS量
+            BigInteger hasDrawSDS = hasDrawed * rate * FOURTEEN_POWER / (sds_price * anchor_price);
 
             //释放的总量大于已经剩余，不能操作
-            if (value > locked - hasDrawSDT) return false;
+            if (value > locked - hasDrawSDS) return false;
 
             byte[] from = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (from.Length == 0) return false;
@@ -543,7 +543,7 @@ namespace BusinessContract
             if (to.Length == 0) return false;
 
             BigInteger serviceFree = Storage.Get(Storage.CurrentContext, SERVICE_FEE).AsBigInteger();
-            //默认10sdt
+            //默认10 sds
             if (serviceFree == 0) serviceFree = 1000000000;
             //转入抵押手续费
             arg = new object[3];
@@ -655,7 +655,7 @@ namespace BusinessContract
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
 
-            BigInteger sdt_price = 0;
+            BigInteger sds_price = 0;
             BigInteger anchor_price = 0;
 
             object[] arg = new object[0];
@@ -663,10 +663,10 @@ namespace BusinessContract
             {
                 var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
 
-                //调用Oracle,查询SDT价格，如：8$=价格*100000000
+                //调用Oracle,查询SDS价格，如：8$=价格*100000000
                 arg = new object[1];
                 arg[0] = CONFIG_SDS_PRICE;
-                sdt_price = (BigInteger)OracleContract("getPrice", arg);
+                sds_price = (BigInteger)OracleContract("getPrice", arg);
             }
 
 
@@ -679,9 +679,9 @@ namespace BusinessContract
                 anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
 
-            BigInteger sdt_rate = getConfig(CONFIG_SDS_RATE); ;
+            BigInteger sds_rate = getConfig(CONFIG_SDS_RATE); ;
 
-            BigInteger sdusd_limit = sdt_price * anchor_price * locked / (sdt_rate * FOURTEEN_POWER);
+            BigInteger sdusd_limit = sds_price * anchor_price * locked / (sds_rate * FOURTEEN_POWER);
 
             if (sdusd_limit < hasDrawed + value) return false;
 
@@ -715,11 +715,11 @@ namespace BusinessContract
             return true;
         }
 
-        public static bool redeem(string name, byte[] addr, byte[] sdsAssetID, byte[] oracleAssetID, byte[] tokenizedAssetID)
+        public static bool redeem(byte[] addr, byte[] sarAddr, byte[] sdsAssetID, byte[] oracleAssetID, byte[] tokenizedAssetID)
         {
             if (addr.Length != 20) return false;
 
-            var key = new byte[] { 0x12 }.Concat(addr);
+            var key = new byte[] { 0x12 }.Concat(sarAddr);
             byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length == 0) return false;
 
@@ -727,9 +727,13 @@ namespace BusinessContract
 
             //SAR状态,必须是关闭状态
             if (info.status != (int)ConfigSARStatus.SAR_STATUS_CLOSE) return false;
-            //转账给用户SDT
+
+            //转账给用户SDS
             byte[] from = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (from.Length == 0) return false;
+
+            //清算的币种
+            string name = info.name;
 
             //调用标准增发
             object[] arg = new object[2];
@@ -740,16 +744,16 @@ namespace BusinessContract
             BigInteger balance = (BigInteger)TokenizedContract("balanceOf", arg);
             if (balance <= 0) return false;
 
-            BigInteger sdt_price = 0;
+            BigInteger sds_price = 0;
             BigInteger anchor_price = 0;
 
             {
                 var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
 
-                //调用Oracle,查询SDT价格，如：8$=价格*100000000
+                //调用Oracle,查询SDS价格，如：8$=价格*100000000
                 arg = new object[1];
                 arg[0] = CONFIG_SDS_PRICE;
-                sdt_price = (BigInteger)OracleContract("getPrice", arg);
+                sds_price = (BigInteger)OracleContract("getPrice", arg);
             }
 
             {
@@ -761,9 +765,9 @@ namespace BusinessContract
                 anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
 
-            BigInteger sdt_rate = getConfig(CONFIG_SDS_RATE); ;
-            //计算可赎回的SDT
-            BigInteger redeem = (balance * sdt_rate * FOURTEEN_POWER) / (info.locked * sdt_price * anchor_price);
+            BigInteger sds_rate = getConfig(CONFIG_SDS_RATE); ;
+            //计算可赎回的SDS
+            BigInteger redeem = (balance * sds_rate * FOURTEEN_POWER) / (info.locked * sds_price * anchor_price);
 
             //销毁用户的稳定代币
             arg = new object[3];
