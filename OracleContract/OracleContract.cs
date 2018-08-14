@@ -11,7 +11,7 @@ namespace OracleContract
     public class OracleContract : SmartContract
     {
         //管理员账户 
-        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
+        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
 
         private const string CONFIG_NEO_PRICE = "neo_price";
         private const string CONFIG_GAS_PRICE = "gas_price";
@@ -25,29 +25,43 @@ namespace OracleContract
         //B端参数配置
         private const string CONFIG_LIQUIDATION_RATE_B = "liquidate_rate_b";
         private const string CONFIG_WARNING_RATE_B = "warning_rate_b";
-
+          
         public static Object Main(string operation, params object[] args)
         {
             var callscript = ExecutionEngine.CallingScriptHash;
 
-            var magicstr = "2018-08-06 15:16";
+            var magicstr = "2018-08-13 15:16";
 
+            //为账户做授权操作
             if (operation == "setAccount")
             {
-                if (args.Length != 1) return false;
+                if (args.Length != 2) return false;
 
                 if (!Runtime.CheckWitness(admin)) return false;
 
                 byte[] account = (byte[])args[0];
 
-                Storage.Put(Storage.CurrentContext, CONFIG_ACCOUNT, account);
+                if (account.Length != 20) return false;
+
+                //设置授权状态,state = 0未授权,state != 0 授权
+                BigInteger state = (BigInteger)args[1];
+
+
+                Storage.Put(Storage.CurrentContext, new byte[] {0x01 }.Concat(account), state);
 
                 return true;
             }
 
+            //获取账户授权状态
             if (operation == "getAccount")
             {
-                return Storage.Get(Storage.CurrentContext, CONFIG_ACCOUNT);
+                if (args.Length != 1) return false;
+
+                byte[] account = (byte[])args[0];
+
+                if (account.Length != 20) return false;
+
+                return Storage.Get(Storage.CurrentContext, new byte[] { 0x01 }.Concat(account));
             }
 
             if (operation == "setConfig")
@@ -82,16 +96,16 @@ namespace OracleContract
                 if (args.Length != 3) return false;
 
                 string key = (string)args[0];
-
+                
                 byte[] from = (byte[])args[1];
-
-                byte[] account = Storage.Get(Storage.CurrentContext, CONFIG_ACCOUNT);
+                 
+                BigInteger state = (BigInteger)Storage.Get(Storage.CurrentContext, new byte[] { 0x01 }.Concat(from)).AsBigInteger();
 
                 BigInteger price = (BigInteger)args[2];
 
 
                 //允许合约或者授权账户调用
-                if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || from != account)) return false;
+                if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || state == 0)) return false;
 
                 return setPrice(key, price);
             }
