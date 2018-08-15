@@ -20,12 +20,18 @@ namespace OracleContract
 
         //C端参数配置
         private const string CONFIG_LIQUIDATION_RATE_C = "liquidate_rate_c";
+
         private const string CONFIG_WARNING_RATE_C = "warning_rate_c";
 
         //B端参数配置
         private const string CONFIG_LIQUIDATION_RATE_B = "liquidate_rate_b";
+
         private const string CONFIG_WARNING_RATE_B = "warning_rate_b";
-          
+
+        //initToken 手续费
+        private const string SERVICE_FEE = "service_fee";
+
+
         public static Object Main(string operation, params object[] args)
         {
             var callscript = ExecutionEngine.CallingScriptHash;

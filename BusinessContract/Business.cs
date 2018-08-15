@@ -28,10 +28,8 @@ namespace BusinessContract
         private const string CONFIG_SDS_PRICE = "sds_price";
 
         //最低抵押率
-        private const string CONFIG_SDS_RATE = "config_sds_rate";
-
-        //最低抵押率
-        private const string CONFIG_LIMIT_RATE = "config_limit_rate";
+        //private const string CONFIG_SDS_RATE = "config_sds_rate";
+        private const string CONFIG_LIQUIDATION_RATE_B = "liquidate_rate_b";
 
         private const string STORAGE_ACCOUNT = "storage_account";
 
@@ -93,13 +91,14 @@ namespace BusinessContract
                 }
                 if (operation == "initToken")
                 {
-                    if (args.Length != 3) return false;
+                    if (args.Length != 4) return false;
                     byte[] addr = (byte[])args[0];
-                    byte[] sdsAssetID = (byte[])args[1];
-                    byte[] tokenizedAssetID = (byte[])args[2];
+                    byte[] oracleAssetID = (byte[])args[1];
+                    byte[] sdsAssetID = (byte[])args[2];
+                    byte[] tokenizedAssetID = (byte[])args[3];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-                    return initToken(addr, sdsAssetID, tokenizedAssetID);
+                    return initToken(addr,oracleAssetID,sdsAssetID,tokenizedAssetID);
                 }
                 //储备，锁定资产
                 if (operation == "reserve")
@@ -111,7 +110,6 @@ namespace BusinessContract
                     byte[] sdsAssetID = (byte[])args[3];
 
                     if (!Runtime.CheckWitness(addr)) return false;
-
                     return reserve(name, addr, value, sdsAssetID);
                 }
                 //增加
@@ -361,8 +359,18 @@ namespace BusinessContract
                 arg[0] = info.anchor;
                 anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
-            //当前兑换率，需要从配置中心获取
-            BigInteger rate = getConfig(CONFIG_SDS_RATE);
+            //当前兑换率，默认是100，需要从配置中心获取
+            BigInteger rate = 100;
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+
+                //调用Oracle,查询抵押率，如：50 => 50%
+                arg = new object[1];
+                arg[0] = CONFIG_LIQUIDATION_RATE_B;
+                BigInteger re = (BigInteger)OracleContract("getConfig", arg);
+                if (re != 0)
+                    rate = re;
+            }
 
             //计算已经兑换过的SDS量
             BigInteger hasDrawSDS = hasDrawed * rate * FOURTEEN_POWER / (sds_price * anchor_price);
@@ -521,7 +529,7 @@ namespace BusinessContract
             return true;
         }
 
-        public static bool initToken(byte[] addr, byte[] sdsAssetID, byte[] tokenizedAssetID)
+        public static bool initToken(byte[] addr,byte[] oracleAssetID, byte[] sdsAssetID, byte[] tokenizedAssetID)
         {
             //判断该地址是否拥有SAR
             var key = new byte[] { 0x12 }.Concat(addr);
@@ -542,9 +550,19 @@ namespace BusinessContract
             byte[] to = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (to.Length == 0) return false;
 
-            BigInteger serviceFree = Storage.Get(Storage.CurrentContext, SERVICE_FEE).AsBigInteger();
-            //默认10 sds
-            if (serviceFree == 0) serviceFree = 1000000000;
+            //当前兑换率，默认是100，需要从配置中心获取
+            BigInteger serviceFree = 1000000000;
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+
+                //调用Oracle,查询手续费，如：50 => 50%
+                arg = new object[1];
+                arg[0] = SERVICE_FEE;
+                BigInteger re = (BigInteger)OracleContract("getConfig", arg);
+                if (re != 0)
+                    serviceFree = re;
+            }
+
             //转入抵押手续费
             arg = new object[3];
             arg[0] = addr;
@@ -679,7 +697,18 @@ namespace BusinessContract
                 anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
 
-            BigInteger sds_rate = getConfig(CONFIG_SDS_RATE); ;
+            //当前兑换率，默认是100，需要从配置中心获取
+            BigInteger sds_rate = 100;
+            {
+                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
+
+                //调用Oracle,查询抵押率，如：50 => 50%
+                arg = new object[1];
+                arg[0] = CONFIG_LIQUIDATION_RATE_B;
+                BigInteger re = (BigInteger)OracleContract("getConfig", arg);
+                if (re != 0)
+                    sds_rate = re;
+            }
 
             BigInteger sdusd_limit = sds_price * anchor_price * locked / (sds_rate * FOURTEEN_POWER);
 
@@ -755,7 +784,6 @@ namespace BusinessContract
                 if (totalSupply <= 0) return false;
             }
 
-
             BigInteger sds_price = 0;
             BigInteger anchor_price = 0;
 
@@ -777,7 +805,6 @@ namespace BusinessContract
                 anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
 
-            BigInteger sds_rate = getConfig(CONFIG_SDS_RATE); ;
             //计算可赎回的SDS
             BigInteger redeem = balance * info.locked/ totalSupply;
 
@@ -801,9 +828,9 @@ namespace BusinessContract
 
             if (!(bool)SDSContract("transfer_contract", param)) return false;
 
+
             info.locked = info.locked - redeem;
             info.hasDrawed = info.hasDrawed - balance;
-
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
 
             //记录交易详细数据
@@ -844,7 +871,7 @@ namespace BusinessContract
             //被锁定的资产,如PNeo
             public BigInteger locked;
 
-            //已经提取的资产，如SDUSDT  
+            //已经提取的资产，如SDUSD
             public BigInteger hasDrawed;
 
             //1安全  2不安全 3不可用   
@@ -871,7 +898,7 @@ namespace BusinessContract
             //已经被锁定的资产金额,如PNeo
             public BigInteger hasLocked;
 
-            //已经提取的资产金额，如SDUSDT  
+            //已经提取的资产金额，如SDUSD
             public BigInteger hasDrawed;
 
             //操作类型
