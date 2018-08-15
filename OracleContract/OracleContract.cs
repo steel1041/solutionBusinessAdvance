@@ -121,9 +121,11 @@ namespace OracleContract
             //设置锚定物对应100000000美元汇率
             /*  
              *  anchor_type_usd    1*100000000
-             *  anchor_type_cny    6.8*100000000  
-             *  anchor_type_eur    1.2*100000000
+             *  anchor_type_cny    6.8*100000000
+             *  anchor_type_eur    0.875*100000000
              *  anchor_type_jpy    120*100000000
+             *  anchor_type_gbp    0.7813 *100000000
+             *  anchor_type_gold   0.000838 * 100000000
              */
             if (operation == "setAnchorPrice")
             {
