@@ -11,7 +11,7 @@ namespace OracleContract
     public class OracleContract : SmartContract
     {
         //管理员账户 
-        private static readonly byte[] admin = Helper.ToScriptHash("Aeto8Loxsh7nXWoVS4FzBkUrFuiCB3Qidn");
+        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
         private const string CONFIG_NEO_PRICE = "neo_price";
         private const string CONFIG_GAS_PRICE = "gas_price";
@@ -30,7 +30,7 @@ namespace OracleContract
         {
             var callscript = ExecutionEngine.CallingScriptHash;
 
-            var magicstr = "2018-08-13 15:16";
+            var magicstr = "2018-08-14 15:16";
 
             //为账户做授权操作
             if (operation == "setAccount")
@@ -200,28 +200,6 @@ namespace OracleContract
 
             return value;
         }
-
-        //获取各节点平均后的最终价格
-        //public static BigInteger getFinalPrice(string key)
-        //{
-        //    BigInteger sum = 0;
-        //    int count = 0;
-        //    for (int i = 0; i < 5; i++)
-        //    {
-        //        string k = key + i.ToString();
-        //        BigInteger price = Storage.Get(Storage.CurrentContext,k).AsBigInteger();
-
-        //        if (price > 0)
-        //        {
-        //            sum = sum + price;
-        //            count++;
-        //        }  
-        //    }
-
-        //    BigInteger finalPrice = sum / count;
-
-        //    return finalPrice;
-        //} 
 
     }
 }
