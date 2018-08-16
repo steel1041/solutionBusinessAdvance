@@ -68,6 +68,13 @@ namespace OracleContract
                 return Storage.Get(Storage.CurrentContext, new byte[] { 0x01 }.Concat(account));
             }
 
+            /*设置全局参数
+             * liquidate_rate_b 150
+             * warning_rate_c 120
+             */ 
+            /*设置锚定物白名单
+             *anchor_type_gold   1:黑名单 0:白名单
+             */
             if (operation == "setConfig")
             {
                 if (args.Length != 2) return false;
