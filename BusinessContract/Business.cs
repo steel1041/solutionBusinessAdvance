@@ -357,7 +357,7 @@ namespace BusinessContract
                 //调用Oracle,查询锚定价格，如：100$=价格*100000000
                 arg = new object[1];
                 arg[0] = info.anchor;
-                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+                anchor_price = (BigInteger)OracleContract("getPrice", arg);
             }
             //当前兑换率，默认是100，需要从配置中心获取
             BigInteger rate = 100;
@@ -695,7 +695,7 @@ namespace BusinessContract
                 //调用Oracle,查询锚定价格，如：100$=价格*100000000
                 arg = new object[1];
                 arg[0] = info.anchor;
-                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+                anchor_price = (BigInteger)OracleContract("getPrice", arg);
             }
 
             //当前兑换率，默认是100，需要从配置中心获取
@@ -803,7 +803,7 @@ namespace BusinessContract
                 //调用Oracle,查询锚定价格，如：100$=价格*100000000
                 arg = new object[1];
                 arg[0] = info.anchor;
-                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
+                anchor_price = (BigInteger)OracleContract("getPrice", arg);
             }
 
             //计算可赎回的SDS

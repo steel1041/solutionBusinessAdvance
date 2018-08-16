@@ -34,9 +34,7 @@ namespace OracleContract
         public static Object Main(string operation, params object[] args)
         { 
             var callscript = ExecutionEngine.CallingScriptHash;
-             
-           byte[] ref ACCOUNT_KEY = new byte[] { 0x01 };
-             
+               
             var magicstr = "2018-08-14 15:16";
 
             //为账户做授权操作
@@ -53,8 +51,7 @@ namespace OracleContract
                 //设置授权状态,state = 0未授权,state != 0 授权
                 BigInteger state = (BigInteger)args[1];
 
-
-                Storage.Put(Storage.CurrentContext, ACCOUNT_KEY.Concat(account), state);
+                Storage.Put(Storage.CurrentContext, new byte[] { 0x01 }.Concat(account), state);
 
                 return true;
             }
@@ -95,9 +92,19 @@ namespace OracleContract
             /* 设置代币价格  
             *  neo_price    50*100000000
             *  gas_price    20*100000000  
-            *  sds_price    0.08*100000000
-            *  
+            *  sds_price    0.08*100000000 
             */
+
+            //设置锚定物对应100000000美元汇率
+            /*  
+             *  anchor_type_usd    1*100000000
+             *  anchor_type_cny    6.8*100000000
+             *  anchor_type_eur    0.875*100000000
+             *  anchor_type_jpy    120*100000000
+             *  anchor_type_gbp    0.7813 *100000000
+             *  anchor_type_gold   0.000838 * 100000000
+             */
+              
             if (operation == "setPrice")
             {
                 if (args.Length != 3) return false;
@@ -105,13 +112,11 @@ namespace OracleContract
                 string key = (string)args[0];
                 
                 byte[] from = (byte[])args[1];
-
-                var dic = new byte[] { 0x01 };
-                BigInteger state = (BigInteger)Storage.Get(Storage.CurrentContext, dic.Concat(from)).AsBigInteger();
+                 
+                BigInteger state = (BigInteger)Storage.Get(Storage.CurrentContext, new byte[] { 0x01 }.Concat(from)).AsBigInteger();
 
                 BigInteger price = (BigInteger)args[2];
-
-
+                
                 //允许合约或者授权账户调用
                 if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || state == 0)) return false;
 
@@ -124,39 +129,7 @@ namespace OracleContract
 
                 return getPrice(key);
             }
-
-
-            //设置锚定物对应100000000美元汇率
-            /*  
-             *  anchor_type_usd    1*100000000
-             *  anchor_type_cny    6.8*100000000
-             *  anchor_type_eur    0.875*100000000
-             *  anchor_type_jpy    120*100000000
-             *  anchor_type_gbp    0.7813 *100000000
-             *  anchor_type_gold   0.000838 * 100000000
-             */
-            if (operation == "setAnchorPrice")
-            {
-                if (args.Length != 2) return false;
-
-                string key = (string)args[0];
-
-                if (!Runtime.CheckWitness(admin)) return false;
-
-                BigInteger price = (BigInteger)args[1];
-
-                return setAnchorPrice(key, price);
-            }
-
-            //获取锚定物对应美元汇率
-            if (operation == "getAnchorPrice")
-            {
-                if (args.Length != 1) return false;
-
-                string key = (string)args[0];
-
-                return getAnchorPrice(key);
-            }
+            
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
             {
@@ -201,51 +174,44 @@ namespace OracleContract
 
             return true;
         }
-
-
-        public static bool setAnchorPrice(string key, BigInteger price)
-        {
-            if (key == null || key == "") return false;
-
-            Storage.Put(Storage.CurrentContext, key, price);
-            return true;
-        }
-
+          
         public static bool setPrice(string key, BigInteger price)
         {
             if (key == null || key == "") return false;
 
             if (price < 0) return false;
 
-            Storage.Put(Storage.CurrentContext, key, price);
+            byte[] byteKey = new byte[] { 0x02 }.Concat(key.AsByteArray());
+
+            Storage.Put(Storage.CurrentContext, byteKey, price);
             return true;
         }
 
         public static BigInteger getPrice(string key)
         {
+            byte[] byteKey = new byte[] { 0x02 }.Concat(key.AsByteArray());
+             
             BigInteger price = Storage.Get(Storage.CurrentContext, key).AsBigInteger();
 
             return price;
         }
-
-        public static BigInteger getAnchorPrice(string key)
-        {
-            BigInteger price = Storage.Get(Storage.CurrentContext, key).AsBigInteger();
-
-            return price;
-        }
-
+          
         public static bool setConfig(string key, BigInteger value)
         {
             if (key == null || key == "") return false;
+             
+            byte[] byteKey = new byte[] { 0x03 }.Concat(key.AsByteArray());
 
-            Storage.Put(Storage.CurrentContext, key, value);
+            Storage.Put(Storage.CurrentContext, byteKey, value);
             return true;
         }
 
         public static BigInteger getConfig(string key)
         {
-            BigInteger value = Storage.Get(Storage.CurrentContext, key).AsBigInteger();
+
+            byte[] byteKey = new byte[] { 0x03 }.Concat(key.AsByteArray());
+
+            BigInteger value = Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger();
 
             return value;
         }
