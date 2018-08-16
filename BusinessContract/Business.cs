@@ -4,7 +4,7 @@ using System;
 using System.Numerics;
 using Helper = Neo.SmartContract.Framework.Helper;
 using System.ComponentModel;
-using Neo.SmartContract.Framework.Services.System; 
+using Neo.SmartContract.Framework.Services.System;
 
 namespace BusinessContract
 {
@@ -77,8 +77,7 @@ namespace BusinessContract
                     return getSAR4B(addr);
                 }
                 if (operation == "openSAR4B")
-                { 
-
+                {
                     if (args.Length != 6) return false;
                     string name = (string)args[0];
                     string symbol = (string)args[1];
@@ -358,7 +357,7 @@ namespace BusinessContract
                 //调用Oracle,查询锚定价格，如：100$=价格*100000000
                 arg = new object[1];
                 arg[0] = info.anchor;
-                anchor_price = (BigInteger)OracleContract("getPrice", arg);
+                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
             //当前兑换率，默认是100，需要从配置中心获取
             BigInteger rate = 100;
@@ -481,6 +480,7 @@ namespace BusinessContract
         /*开启一个新的债仓*/
         public static bool openSAR4B(string name, string symbol, byte decimals, byte[] addr, string anchor, byte[] tokenizedAssetID)
         {
+            
             if (addr.Length != 20) return false;
 
             //判断该地址是否拥有SAR
@@ -491,7 +491,7 @@ namespace BusinessContract
             //调用标准合约
             object[] arg = new object[1];
             arg[0] = name;
-
+            
             //验证name
             var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
             string str = (string)TokenizedContract("name", arg);
@@ -695,7 +695,7 @@ namespace BusinessContract
                 //调用Oracle,查询锚定价格，如：100$=价格*100000000
                 arg = new object[1];
                 arg[0] = info.anchor;
-                anchor_price = (BigInteger)OracleContract("getPrice", arg);
+                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
 
             //当前兑换率，默认是100，需要从配置中心获取
@@ -803,7 +803,7 @@ namespace BusinessContract
                 //调用Oracle,查询锚定价格，如：100$=价格*100000000
                 arg = new object[1];
                 arg[0] = info.anchor;
-                anchor_price = (BigInteger)OracleContract("getPrice", arg);
+                anchor_price = (BigInteger)OracleContract("getAnchorPrice", arg);
             }
 
             //计算可赎回的SDS
