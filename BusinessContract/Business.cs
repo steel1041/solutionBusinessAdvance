@@ -48,8 +48,7 @@ namespace BusinessContract
             TRANSACTION_TYPE_CONTRACT,//赎回
             TRANSACTION_TYPE_SHUT,//关闭
             TRANSACTION_TYPE_REDEEM,//用户 赎回
-            TRANSACTION_TYPE_DESTORY//销毁代币
-
+            TRANSACTION_TYPE_DESTORY//销毁
 
         }
 
@@ -64,7 +63,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-08-14 17:30";
+            var magicstr = "2018-08-16 17:30";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -408,7 +407,7 @@ namespace BusinessContract
             if (value > locked - hasDrawSDS) return false;
 
             //剩余必须大于
-            if (locked - hasDrawSDS < serviceFree) return false;
+            if (locked < serviceFree) return false;
 
             byte[] from = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (from.Length == 0) return false;
@@ -514,7 +513,6 @@ namespace BusinessContract
             var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
 
             if (!(bool)SDSContract("transfer_contract", param)) return false;
-
 
             param = new object[2];
             param[0] = name;
