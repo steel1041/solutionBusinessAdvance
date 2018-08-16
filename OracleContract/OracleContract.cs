@@ -1,4 +1,4 @@
-﻿using Neo.SmartContract.Framework;
+﻿using Neo.SmartContract.Framework; 
 using Neo.SmartContract.Framework.Services.Neo;
 using Helper = Neo.SmartContract.Framework.Helper;
 using System;
@@ -30,12 +30,13 @@ namespace OracleContract
 
         //initToken 手续费
         private const string SERVICE_FEE = "service_fee";
-
-
+         
         public static Object Main(string operation, params object[] args)
-        {
+        { 
             var callscript = ExecutionEngine.CallingScriptHash;
-
+             
+           byte[] ref ACCOUNT_KEY = new byte[] { 0x01 };
+             
             var magicstr = "2018-08-14 15:16";
 
             //为账户做授权操作
@@ -53,7 +54,7 @@ namespace OracleContract
                 BigInteger state = (BigInteger)args[1];
 
 
-                Storage.Put(Storage.CurrentContext, new byte[] {0x01 }.Concat(account), state);
+                Storage.Put(Storage.CurrentContext, ACCOUNT_KEY.Concat(account), state);
 
                 return true;
             }
@@ -113,8 +114,9 @@ namespace OracleContract
                 if (args.Length != 3) return false; 
                 string key = (string)args[0]; 
                 byte[] from = (byte[])args[1];
-                 
-                BigInteger state = (BigInteger)Storage.Get(Storage.CurrentContext, new byte[] { 0x01 }.Concat(from)).AsBigInteger();
+
+                var dic = new byte[] { 0x01 };
+                BigInteger state = (BigInteger)Storage.Get(Storage.CurrentContext, dic.Concat(from)).AsBigInteger();
 
                 BigInteger price = (BigInteger)args[2];
                 
