@@ -198,7 +198,7 @@ namespace OracleContract
         {
             byte[] byteKey = new byte[] { 0x02 }.Concat(key.AsByteArray());
              
-            BigInteger price = Storage.Get(Storage.CurrentContext, key).AsBigInteger();
+            BigInteger price = Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger();
 
             return price;
         }
