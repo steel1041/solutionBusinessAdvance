@@ -31,7 +31,17 @@ namespace BusinessContract
         //private const string CONFIG_SDS_RATE = "config_sds_rate";
         private const string CONFIG_LIQUIDATION_RATE_B = "liquidate_rate_b";
 
+        //合约收款账户
         private const string STORAGE_ACCOUNT = "storage_account";
+        
+        //SDS合约账户
+        private const string SDS_ACCOUNT = "sds_account";
+
+        //Oracle合约账户
+        private const string ORACLE_ACCOUNT = "oracle_account";
+
+        //Tokenized合约账户
+        private const string TOKENIZED_ACCOUNT = "tokenized_account";
 
         private const string SERVICE_FEE = "service_fee";
 
@@ -63,7 +73,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-08-16 17:30";
+            var magicstr = "2018-08-20 14:45";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -85,9 +95,17 @@ namespace BusinessContract
                     byte decimals = (byte)args[2];
                     byte[] addr = (byte[])args[3];
                     string anchor = (string)args[4];
-                    byte[] oracleAssetID = (byte[])args[5];
-                    byte[] tokenizedAssetID = (byte[])args[6];
 
+                    byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, ORACLE_ACCOUNT);
+                    if (oracleAssetID.Length == 0)
+                    {
+                        oracleAssetID = (byte[])args[5];
+                    }
+
+                    byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, TOKENIZED_ACCOUNT);
+                    if (tokenizedAssetID.Length == 0) {
+                        tokenizedAssetID = (byte[])args[6];
+                    }
                     if (!Runtime.CheckWitness(addr)) return false;
                     return openSAR4B(name, symbol, decimals, addr, anchor, oracleAssetID ,tokenizedAssetID);
                 }
@@ -95,10 +113,23 @@ namespace BusinessContract
                 {
                     if (args.Length != 4) return false;
                     byte[] addr = (byte[])args[0];
-                    byte[] oracleAssetID = (byte[])args[1];
-                    byte[] sdsAssetID = (byte[])args[2];
-                    byte[] tokenizedAssetID = (byte[])args[3];
 
+                    byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, ORACLE_ACCOUNT);
+                    if (oracleAssetID.Length == 0)
+                    {
+                        oracleAssetID = (byte[])args[1];
+                    }
+
+                    byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, SDS_ACCOUNT);
+                    if (sdsAssetID.Length == 0) {
+                        sdsAssetID = (byte[])args[2];
+
+                    }
+                    byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, TOKENIZED_ACCOUNT);
+                    if (tokenizedAssetID.Length == 0)
+                    {
+                        tokenizedAssetID = (byte[])args[3];
+                    }
                     if (!Runtime.CheckWitness(addr)) return false;
                     return initToken(addr,oracleAssetID,sdsAssetID,tokenizedAssetID);
                 }
@@ -109,8 +140,12 @@ namespace BusinessContract
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
                     BigInteger value = (BigInteger)args[2];
-                    byte[] sdsAssetID = (byte[])args[3];
+                    byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, SDS_ACCOUNT);
+                    if (sdsAssetID.Length == 0)
+                    {
+                        sdsAssetID = (byte[])args[3];
 
+                    }
                     if (!Runtime.CheckWitness(addr)) return false;
                     return reserve(name, addr, value, sdsAssetID);
                 }
@@ -121,9 +156,16 @@ namespace BusinessContract
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
                     BigInteger value = (BigInteger)args[2];
-                    byte[] oracleAssetID = (byte[])args[3];
-                    byte[] tokenizedAssetID = (byte[])args[4];
-
+                    byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, ORACLE_ACCOUNT);
+                    if (oracleAssetID.Length == 0)
+                    {
+                        oracleAssetID = (byte[])args[3];
+                    }
+                    byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, TOKENIZED_ACCOUNT);
+                    if (tokenizedAssetID.Length == 0)
+                    {
+                        tokenizedAssetID = (byte[])args[4];
+                    }
                     if (!Runtime.CheckWitness(addr)) return false;
                     return expande(name, addr, value, oracleAssetID, tokenizedAssetID);
                 }
@@ -134,8 +176,12 @@ namespace BusinessContract
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
                     BigInteger value = (BigInteger)args[2];
-                    byte[] tokenizedAssetID = (byte[])args[3];
 
+                    byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, TOKENIZED_ACCOUNT);
+                    if (tokenizedAssetID.Length == 0)
+                    {
+                        tokenizedAssetID = (byte[])args[3];
+                    }
                     if (!Runtime.CheckWitness(addr)) return false;
                     return contract(name, addr, value, tokenizedAssetID);
                 }
@@ -146,32 +192,35 @@ namespace BusinessContract
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
                     BigInteger value = (BigInteger)args[2];
-                    byte[] oracleAssetID = (byte[])args[3];
-                    byte[] sdsAssetID = (byte[])args[4];
-                    byte[] tokenizedAssetID = (byte[])args[5];
+                    byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, ORACLE_ACCOUNT);
+                    if (oracleAssetID.Length == 0)
+                    {
+                        oracleAssetID = (byte[])args[3];
+                    }
+
+                    byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, SDS_ACCOUNT);
+                    if (sdsAssetID.Length == 0)
+                    {
+                        sdsAssetID = (byte[])args[4];
+
+                    }
+                    byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, TOKENIZED_ACCOUNT);
+                    if (tokenizedAssetID.Length == 0)
+                    {
+                        tokenizedAssetID = (byte[])args[5];
+                    }
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     return withdraw(name, addr, value, oracleAssetID, sdsAssetID, tokenizedAssetID);
                 }
                 if (operation == "setAccount")
                 {
-                    if (args.Length != 1) return false;
-                    byte[] address = (byte[])args[0];
-                    if (!Runtime.CheckWitness(admin)) return false;
-                    return setAccount(address);
-                }
-                if (operation == "setConfig")
-                {
                     if (args.Length != 2) return false;
                     string key = (string)args[0];
-                    BigInteger value = (BigInteger)args[1];
-                    return setConfig(key, value);
-                }
-                if (operation == "getConfig")
-                {
-                    if (args.Length != 1) return false;
-                    string key = (string)args[0];
-                    return getConfig(key);
+                    byte[] address = (byte[])args[1];
+                    if (!Runtime.CheckWitness(admin)) return false;
+
+                    return setAccount(key,address);
                 }
                 //个人用户赎回不安全的仓位
                 if (operation == "redeem")
@@ -179,19 +228,28 @@ namespace BusinessContract
                     if (args.Length != 5) return false;
                     byte[] addr = (byte[])args[0];
                     byte[] sarAddr = (byte[])args[1];
-                    byte[] sdsAssetID = (byte[])args[2];
-                    byte[] oracleAssetID = (byte[])args[3];
-                    byte[] tokenizedAssetID = (byte[])args[4];
+                    byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, SDS_ACCOUNT);
+                    if (sdsAssetID.Length == 0)
+                    {
+                        sdsAssetID = (byte[])args[2];
+
+                    }
+
+                    byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, ORACLE_ACCOUNT);
+                    if (oracleAssetID.Length == 0)
+                    {
+                        oracleAssetID = (byte[])args[3];
+                    }
+
+                    byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, TOKENIZED_ACCOUNT);
+                    if (tokenizedAssetID.Length == 0)
+                    {
+                        tokenizedAssetID = (byte[])args[4];
+                    }
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     return redeem(addr, sarAddr, sdsAssetID, oracleAssetID, tokenizedAssetID);
 
-                }
-                if (operation == "getConfigTest")
-                {
-                    if (args.Length != 1) return false;
-                    string key = (string)args[0];
-                    return getConfig(key);
                 }
                 //修改SAR状态为关闭
                 if (operation == "settingSAR")
@@ -209,10 +267,23 @@ namespace BusinessContract
                     if (args.Length != 5) return false;
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
-                    byte[] oracleAssetID = (byte[])args[2];
-                    byte[] sdsAssetID = (byte[])args[3];
-                    byte[] tokenizedAssetID = (byte[])args[4];
+                    byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, ORACLE_ACCOUNT);
+                    if (oracleAssetID.Length == 0)
+                    {
+                        oracleAssetID = (byte[])args[2];
+                    }
 
+                    byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, SDS_ACCOUNT);
+                    if (sdsAssetID.Length == 0)
+                    {
+                        sdsAssetID = (byte[])args[3];
+
+                    }
+                    byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, TOKENIZED_ACCOUNT);
+                    if (tokenizedAssetID.Length == 0)
+                    {
+                        tokenizedAssetID = (byte[])args[4];
+                    }
                     if (!Runtime.CheckWitness(addr)) return false;
                     return destory(name, addr, oracleAssetID, sdsAssetID, tokenizedAssetID);
                 }
@@ -262,29 +333,14 @@ namespace BusinessContract
             return true;
         }
 
-        public static bool setAccount(byte[] address)
+        public static bool setAccount(string key,byte[] address)
         {
-            //byte[] addr = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
+            if (key==null || key =="") return false;
+
             if (address.Length != 20) return false;
-            Storage.Put(Storage.CurrentContext, STORAGE_ACCOUNT, address);
+            Storage.Put(Storage.CurrentContext, key, address);
+
             return true;
-        }
-
-        public static bool setConfig(string key, BigInteger value)
-        {
-            if (key == null || key == "") return false;
-            //只允许超管操作
-            if (!Runtime.CheckWitness(admin)) return false;
-
-            Storage.Put(Storage.CurrentContext, key.AsByteArray(), value);
-            return true;
-        }
-
-        public static BigInteger getConfig(string key)
-        {
-            if (key == null || key == "") return 0;
-
-            return Storage.Get(Storage.CurrentContext, key.AsByteArray()).AsBigInteger();
         }
 
         /*查询债仓详情*/
@@ -407,7 +463,7 @@ namespace BusinessContract
             if (value > locked - hasDrawSDS) return false;
 
             //剩余必须大于
-            if (locked < serviceFree) return false;
+            if (locked - value < serviceFree) return false;
 
             byte[] from = Storage.Get(Storage.CurrentContext, STORAGE_ACCOUNT);
             if (from.Length == 0) return false;
@@ -521,8 +577,11 @@ namespace BusinessContract
             var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
             if (!(bool)TokenizedContract("close", param)) return false;
 
-            Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
+            info.locked = 0;
+            info.status = (int)ConfigSARStatus.SAR_STATUS_CLOSE;
 
+            //Storage.Put(Storage.CurrentContext,key, Helper.Serialize(info));
+            Storage.Delete(Storage.CurrentContext,key);
             //记录交易详细数据
             SARTransferDetail detail = new SARTransferDetail();
             detail.from = addr;

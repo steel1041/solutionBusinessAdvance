@@ -27,7 +27,7 @@ namespace ServiceContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-08-16";
+            var magicstr = "2018-08-20";
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 return false;
