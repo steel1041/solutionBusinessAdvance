@@ -35,7 +35,7 @@ namespace OracleContract
         { 
             var callscript = ExecutionEngine.CallingScriptHash;
                
-            var magicstr = "2018-08-14 15:16";
+            var magicstr = "2018-08-29 15:16";
 
             //为账户做授权操作
             if (operation == "setAccount")
@@ -136,6 +136,12 @@ namespace OracleContract
 
                 return getPrice(key);
             }
+            if (operation == "getMedian")
+            {
+                if (args.Length != 1) return false;
+                string key = (string)args[0];
+                return getMedian();
+            }
             
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
@@ -221,6 +227,74 @@ namespace OracleContract
             BigInteger value = Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger();
 
             return value;
+        }
+
+        private static BigInteger getMedian() {
+
+            //double[] arr = new double[] { 1, 1.1, 2.3, 4.5, 7, 8 };
+            //为了不修改arr值，对数组的计算和修改在tempArr数组中进行
+
+            //BigInteger[] arr
+            BigInteger[] tempArr = new BigInteger[5];
+            tempArr[0] = Storage.Get(Storage.CurrentContext, "neo_price_01").AsBigInteger();
+            tempArr[1] = Storage.Get(Storage.CurrentContext, "neo_price_02").AsBigInteger();
+            tempArr[2] = Storage.Get(Storage.CurrentContext, "neo_price_03").AsBigInteger();
+            tempArr[3] = Storage.Get(Storage.CurrentContext, "neo_price_04").AsBigInteger();
+            tempArr[4] = Storage.Get(Storage.CurrentContext, "neo_price_05").AsBigInteger();
+
+
+            //BigInteger[] tempArr = new BigInteger[5];
+
+            //for (int k=0;k<arr.Length;k++) {
+            //    tempArr[k] = arr[k];
+            //}
+
+            //对数组进行排序
+            BigInteger temp;
+            for (int i = 0; i < tempArr.Length; i++)
+            {
+                for (int j = i; j < tempArr.Length; j++)
+                {
+                    if (tempArr[i] > tempArr[j])
+                    {
+                        temp = tempArr[i];
+                        tempArr[i] = tempArr[j];
+                        tempArr[j] = temp;
+                    }
+                }
+            }
+
+            //针对数组元素的奇偶分类讨论
+            if (tempArr.Length % 2 != 0)
+            {
+                return tempArr[tempArr.Length / 2 + 1];
+            }
+            else
+            {
+              return (tempArr[tempArr.Length / 2] + tempArr[tempArr.Length / 2 + 1]) / 2;
+            }
+        }
+
+        private static int mypow(int x, int y)
+        {
+            if (y < 0)
+            {
+                return 0;
+            }
+            if (y == 0)
+            {
+                return 1;
+            }
+            if (y == 1)
+            {
+                return x;
+            }
+            int result = x;
+            for (int i = 1; i < y; i++)
+            {
+                result *= x;
+            }
+            return result;
         }
 
     }
