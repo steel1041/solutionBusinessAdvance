@@ -5,10 +5,10 @@ using System;
 using System.Numerics;
 using Neo.SmartContract.Framework.Services.System;
 
-namespace DataCenterContract
+namespace DataCenterContract2
 
 {
-    public class DataCenterContract : SmartContract
+    public class DataCenterContract2 : SmartContract
     {
         //管理员账户 
         private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
