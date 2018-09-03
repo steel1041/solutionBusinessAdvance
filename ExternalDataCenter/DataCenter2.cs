@@ -237,7 +237,6 @@ namespace DataCenterContract2
 
         public static bool setNeoPrice(byte[] key, BigInteger price)
         {
-
             Storage.Put(Storage.CurrentContext, key, price);
             return true;
         }

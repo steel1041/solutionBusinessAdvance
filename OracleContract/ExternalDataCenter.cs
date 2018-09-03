@@ -18,7 +18,7 @@ namespace OracleContract
         private const string CONFIG_SDS_PRICE = "sds_price";
         private const string CONFIG_ACCOUNT = "account_key";
         private const string CONFIG_ADDRESS_COUNT = "address_count_key";
-
+   
         //C端参数配置
         private const string CONFIG_LIQUIDATION_RATE_C = "liquidate_rate_c";
 
@@ -48,6 +48,8 @@ namespace OracleContract
 
                 byte[] addr = (byte[])args[3];
 
+                BigInteger value = (BigInteger)args[4];
+
                 if (index == 1)
                 { 
                     return Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT);
@@ -64,7 +66,18 @@ namespace OracleContract
 
                 if (index == 3)
                 {
-                    return Storage.Get(Storage.CurrentContext, new byte[] { 0x01 }.Concat(addr));
+                    return Storage.Get(Storage.CurrentContext, new byte[] { 0x10 }.Concat(addr));
+                }
+
+                if (index == 4)
+                {
+                    byte[] bytePrefix = new byte[] { 0x02 };
+
+                    byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
+
+                    Storage.Put(Storage.CurrentContext, bytePrefix.Concat(byteKey),value);
+
+                    return true;
                 }
 
                 return Storage.Get(Storage.CurrentContext,key);
@@ -114,11 +127,15 @@ namespace OracleContract
 
                 if (account.Length != 20) return false;
 
-                //设置授权状态,state = 0未授权,state != 0 授权
+                //设置授权状态state != 0 授权
                 BigInteger state = (BigInteger)args[1];
 
-                Storage.Put(Storage.CurrentContext, new byte[] { 0x10 }.Concat(account), state);
+                byte[] bytePrefix = new byte[] { 0x10 };
 
+                if (Storage.Get(Storage.CurrentContext, bytePrefix.Concat(account)).AsBigInteger() != 0 || state == 0) return false;
+
+                Storage.Put(Storage.CurrentContext, bytePrefix.Concat(account), state);
+                
                 BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
 
                 count += 1;
@@ -225,12 +242,6 @@ namespace OracleContract
 
                 return getTypeB(key);
             }
-            if (operation == "getMedian")
-            {
-                if (args.Length != 1) return false;
-                string key = (string)args[0];
-                return getMedian();
-            }
             
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
@@ -276,32 +287,12 @@ namespace OracleContract
 
             return true;
         }
-        
-        public static bool setTypeB(string key,BigInteger keyIndex ,BigInteger value)
-        {
-            if (key == null || key == "") return false;
 
-            if (value < 0) return false;
 
-            BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
-
-            if (keyIndex > count || keyIndex == 0) return false;
-             
-            byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
-             
-            Storage.Put(Storage.CurrentContext, new byte[] { 0x02 }.Concat(byteKey), value);
-            return true;
-        }
-
-        public static BigInteger getTypeB(string key)
-        { 
-            return computeTypeB(key);
-        } 
-          
         public static bool setTypeA(string key, BigInteger value)
         {
             if (key == null || key == "") return false;
-             
+
             byte[] byteKey = new byte[] { 0x03 }.Concat(key.AsByteArray());
 
             Storage.Put(Storage.CurrentContext, byteKey, value);
@@ -315,129 +306,77 @@ namespace OracleContract
 
             BigInteger value = Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger();
 
-            return value; 
+            return value;
         }
 
-        private static BigInteger getMedian() {
-
-            //double[] arr = new double[] { 1, 1.1, 2.3, 4.5, 7, 8 };
-            //为了不修改arr值，对数组的计算和修改在tempArr数组中进行
-
-            //BigInteger[] arr
-            BigInteger[] tempArr = new BigInteger[5];
-            tempArr[0] = Storage.Get(Storage.CurrentContext, "neo_price_01").AsBigInteger();
-            tempArr[1] = Storage.Get(Storage.CurrentContext, "neo_price_02").AsBigInteger();
-            tempArr[2] = Storage.Get(Storage.CurrentContext, "neo_price_03").AsBigInteger();
-            tempArr[3] = Storage.Get(Storage.CurrentContext, "neo_price_04").AsBigInteger();
-            tempArr[4] = Storage.Get(Storage.CurrentContext, "neo_price_05").AsBigInteger();
-
-
-            //BigInteger[] tempArr = new BigInteger[5];
-
-            //for (int k=0;k<arr.Length;k++) {
-            //    tempArr[k] = arr[k];
-            //}
-
-            //对数组进行排序
-            BigInteger temp;
-            for (int i = 0; i < tempArr.Length; i++)
-            {
-                for (int j = i; j < tempArr.Length; j++)
-                {
-                    if (tempArr[i] > tempArr[j])
-                    {
-                        temp = tempArr[i];
-                        tempArr[i] = tempArr[j];
-                        tempArr[j] = temp;
-                    }
-                }
-            }
-
-            //针对数组元素的奇偶分类讨论
-            if (tempArr.Length % 2 != 0)
-            {
-                return tempArr[tempArr.Length / 2 + 1];
-            }
-            else
-            {
-              return (tempArr[tempArr.Length / 2] + tempArr[tempArr.Length / 2 + 1]) / 2;
-            }
-        }
-
-        private static int mypow(int x, int y)
+        public static bool setTypeB(string key,BigInteger keyIndex ,BigInteger value)
         {
-            if (y < 0)
-            {
-                return 0;
-            }
-            if (y == 0)
-            {
-                return 1;
-            }
-            if (y == 1)
-            {
-                return x;
-            }
-            int result = x;
-            for (int i = 1; i < y; i++)
-            {
-                result *= x;
-            }
-            return result;
+            if (key == null || key == "") return false;
+
+            if (value < 0) return false;
+
+            BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
+
+            if (keyIndex > count || keyIndex == 0) return false;
+
+            byte[] bytePrefix = new byte[] { 0x02 };
+
+            byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
+             
+            Storage.Put(Storage.CurrentContext, bytePrefix.Concat(byteKey), value);
+            return true;
         }
 
+        public static BigInteger getTypeB(string key)
+        { 
+            return computeTypeB(key);
+        } 
+           
         public static BigInteger computeTypeB(string key) {
 
             byte[] bytePrefix = new byte[] { 0x02 };
 
             BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
              
-            var prices = new BigInteger[] {};
-
-            for (int i = 0; i < count; i++)
+            var prices = new BigInteger[(int)count];
+             
+            for (int i = 0; i < prices.Length; i++)
             {
                 BigInteger keyIndex = i + 1;
 
                 byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
 
-                prices[i] = Storage.Get(Storage.CurrentContext,bytePrefix.Concat(byteKey)).AsBigInteger();
-
+                prices[i] = Storage.Get(Storage.CurrentContext,bytePrefix.Concat(byteKey)).AsBigInteger(); 
             }
             
+            BigInteger temp;
             for (int i = 0; i < prices.Length; i++)
             {
-                for (int j = 0; j < prices.Length - i; j++)
+                for (int j = i; j < prices.Length; j++)
                 {
-                    if (prices[j] > prices[j + 1])
+                    if (prices[i] > prices[j])
                     {
-                        BigInteger temp = prices[j];
-
-                        prices[j] = prices[j + 1];
-
-                        prices[j + 1] = temp;
-
+                        temp = prices[i];
+                        prices[i] = prices[j];
+                        prices[j] = temp;
                     }
-                } 
+                }
             }
-
-            int n = prices.Length;
-            int index = 0;
-
-            if (n % 2 == 0)
+              
+            BigInteger value = 0;
+            if (prices.Length % 2 != 0)
             {
-                index = n / 2;
-
-                return prices[index];
+                value = prices[(prices.Length + 1) / 2 - 1]; 
             }
             else
             {
-                index = (n + 1) / 2;
-                BigInteger value = prices[index] + prices[index + 1];
+                int index = prices.Length / 2;
 
-                return value / 2;
-            } 
-        }
-        
+                value = (prices[index] + prices[index - 1]) / 2; 
+            }
+
+            return value;
+        } 
     }
 }
 
