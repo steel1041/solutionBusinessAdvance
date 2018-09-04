@@ -38,51 +38,6 @@ namespace OracleContract
 
             var magicstr = "2018-08-29 15:16";
 
-            if (operation == "test")
-            {
-                BigInteger index = (BigInteger)args[0];
-
-                string key = (string)args[1];
-
-                BigInteger keyIndex = (BigInteger)args[2];
-
-                byte[] addr = (byte[])args[3];
-
-                BigInteger value = (BigInteger)args[4];
-
-                if (index == 1)
-                {
-                    return Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT);
-                }
-
-                if (index == 2)
-                {
-                    byte[] bytePrefix = new byte[] { 0x02 };
-
-                    byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
-
-                    return Storage.Get(Storage.CurrentContext, bytePrefix.Concat(byteKey)).AsBigInteger();
-                }
-
-                if (index == 3)
-                {
-                    return Storage.Get(Storage.CurrentContext, new byte[] { 0x10 }.Concat(addr));
-                }
-
-                if (index == 4)
-                {
-                    byte[] bytePrefix = new byte[] { 0x02 };
-
-                    byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
-
-                    Storage.Put(Storage.CurrentContext, bytePrefix.Concat(byteKey), value);
-
-                    return true;
-                }
-
-                return Storage.Get(Storage.CurrentContext, key);
-            }
-
             //管理员添加TypeA的合法参数
             if (operation == "addTypeAParaWhit")
             {
@@ -144,34 +99,6 @@ namespace OracleContract
 
                    return true;
                }
-            /*
-            //管理员新增TypeB的合法参数(优化)
-            if (operation == "addTypeBParaWhit")
-            {
-                if (args.Length != 1) return false;
-
-                if (!Runtime.CheckWitness(admin)) return false;
-
-                byte[] addr = (byte[])args[0];
-
-                if (addr.Length != 20) return false;
-
-                byte[] bytePrefix = new byte[] { 0x10 };
-
-                if (Storage.Get(Storage.CurrentContext, bytePrefix.Concat(addr)).AsBigInteger() != 0) return false;  //如果已授权的addr禁止重新授权
-
-                BigInteger addrCount = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
-
-                BigInteger state = addrCount + 1;  //设置授权状态state
-
-                Storage.Put(Storage.CurrentContext, bytePrefix.Concat(addr), state);
-
-                addrCount += 1;
-
-                Storage.Put(Storage.CurrentContext, CONFIG_ADDRESS_COUNT, addrCount);
-
-                return true;
-            }*/
 
             //管理员移除TypeB的合法参数
             if (operation == "removeTypeBParaWhit")
@@ -245,27 +172,6 @@ namespace OracleContract
              *  anchor_type_gbp    0.7813 *100000000
              *  anchor_type_gold   0.000838 * 100000000
              */
-
-            /*
-            if (operation == "setTypeB")
-            {
-                if (args.Length != 4) return false;
-
-                string key = (string)args[0];
-                
-                BigInteger keyIndex = (BigInteger)args[1];
-
-                byte[] from = (byte[])args[2];
-                 
-                BigInteger state = (BigInteger)Storage.Get(Storage.CurrentContext, new byte[] { 0x10 }.Concat(from)).AsBigInteger();
-
-                BigInteger value = (BigInteger)args[3];
-                
-                //允许合约或者授权账户调用
-                if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || state == 0)) return false;
-
-                return setTypeB(key, keyIndex, value);
-            }*/
 
             if (operation == "setTypeB")
             {
