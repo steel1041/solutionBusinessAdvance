@@ -192,12 +192,11 @@ namespace OracleContract
                 if (keyIndex != state) return false; //根据state的值和keyIndex不对应,禁止写入
                 
                 //允许合约或者授权账户调用
-                if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || state == 0)) return false;
+                if (callscript.AsBigInteger() != from.AsBigInteger() && state == 0) return false;
 
                 return setTypeB(key, keyIndex, value);
             }
             
-
             if (operation == "getTypeB")
             {
                 if (args.Length != 1) return false;
