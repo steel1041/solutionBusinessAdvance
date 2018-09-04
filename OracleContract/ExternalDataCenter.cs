@@ -31,11 +31,11 @@ namespace OracleContract
 
         //initToken 手续费
         private const string SERVICE_FEE = "service_fee";
-         
+
         public static Object Main(string operation, params object[] args)
-        { 
+        {
             var callscript = ExecutionEngine.CallingScriptHash;
-               
+
             var magicstr = "2018-08-29 15:16";
 
             if (operation == "test")
@@ -51,18 +51,18 @@ namespace OracleContract
                 BigInteger value = (BigInteger)args[4];
 
                 if (index == 1)
-                { 
+                {
                     return Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT);
                 }
 
                 if (index == 2)
-                { 
+                {
                     byte[] bytePrefix = new byte[] { 0x02 };
 
                     byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
 
-                    return Storage.Get(Storage.CurrentContext, bytePrefix.Concat(byteKey)).AsBigInteger(); 
-                 }
+                    return Storage.Get(Storage.CurrentContext, bytePrefix.Concat(byteKey)).AsBigInteger();
+                }
 
                 if (index == 3)
                 {
@@ -75,12 +75,12 @@ namespace OracleContract
 
                     byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
 
-                    Storage.Put(Storage.CurrentContext, bytePrefix.Concat(byteKey),value);
+                    Storage.Put(Storage.CurrentContext, bytePrefix.Concat(byteKey), value);
 
                     return true;
                 }
 
-                return Storage.Get(Storage.CurrentContext,key);
+                return Storage.Get(Storage.CurrentContext, key);
             }
 
             //管理员添加TypeA的合法参数
@@ -108,7 +108,7 @@ namespace OracleContract
                 if (args.Length != 1) return false;
 
                 byte[] addr = (byte[])args[0];
-                 
+
                 if (!Runtime.CheckWitness(admin)) return false;
 
                 Storage.Delete(Storage.CurrentContext, new byte[] { 0x01 }.Concat(addr));
@@ -118,32 +118,60 @@ namespace OracleContract
 
             //管理员新增TypeB的合法参数
             if (operation == "addTypeBParaWhit")
+               {
+                   if (args.Length != 2) return false;
+
+                   if (!Runtime.CheckWitness(admin)) return false;
+
+                   byte[] account = (byte[])args[0];
+
+                   if (account.Length != 20) return false;
+
+                   //设置授权状态state != 0 授权
+                   BigInteger state = (BigInteger)args[1];
+
+                   byte[] bytePrefix = new byte[] { 0x10 };
+
+                   if (Storage.Get(Storage.CurrentContext, bytePrefix.Concat(account)).AsBigInteger() != 0 || state == 0) return false;
+
+                   Storage.Put(Storage.CurrentContext, bytePrefix.Concat(account), state);
+
+                   BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
+
+                   count += 1;
+
+                   Storage.Put(Storage.CurrentContext, CONFIG_ADDRESS_COUNT, count);
+
+                   return true;
+               }
+            /*
+            //管理员新增TypeB的合法参数(优化)
+            if (operation == "addTypeBParaWhit")
             {
-                if (args.Length != 2) return false;
+                if (args.Length != 1) return false;
 
                 if (!Runtime.CheckWitness(admin)) return false;
 
-                byte[] account = (byte[])args[0];
+                byte[] addr = (byte[])args[0];
 
-                if (account.Length != 20) return false;
-
-                //设置授权状态state != 0 授权
-                BigInteger state = (BigInteger)args[1];
+                if (addr.Length != 20) return false;
 
                 byte[] bytePrefix = new byte[] { 0x10 };
 
-                if (Storage.Get(Storage.CurrentContext, bytePrefix.Concat(account)).AsBigInteger() != 0 || state == 0) return false;
+                if (Storage.Get(Storage.CurrentContext, bytePrefix.Concat(addr)).AsBigInteger() != 0) return false;  //如果已授权的addr禁止重新授权
 
-                Storage.Put(Storage.CurrentContext, bytePrefix.Concat(account), state);
-                
-                BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
+                BigInteger addrCount = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
 
-                count += 1;
+                BigInteger state = addrCount + 1;  //设置授权状态state
 
-                Storage.Put(Storage.CurrentContext, CONFIG_ADDRESS_COUNT, count);
-                 
+                Storage.Put(Storage.CurrentContext, bytePrefix.Concat(addr), state);
+
+                addrCount += 1;
+
+                Storage.Put(Storage.CurrentContext, CONFIG_ADDRESS_COUNT, addrCount);
+
                 return true;
-            }
+            }*/
 
             //管理员移除TypeB的合法参数
             if (operation == "removeTypeBParaWhit")
@@ -154,19 +182,21 @@ namespace OracleContract
 
                 if (!Runtime.CheckWitness(admin)) return false;
 
-                Storage.Delete(Storage.CurrentContext, new byte[] { 0x10 }.Concat(addr));
+                byte[] bytePrefix = new byte[] { 0x10 };
 
-                BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
+                Storage.Delete(Storage.CurrentContext, bytePrefix.Concat(addr));
 
-                count -= 1;
+                BigInteger addrCount = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
 
-                if (count == 0)
+                addrCount -= 1;
+
+                if (addrCount <= 0)
                 {
                     Storage.Delete(Storage.CurrentContext, CONFIG_ADDRESS_COUNT);
                 }
-                else {
-
-                    Storage.Put(Storage.CurrentContext, CONFIG_ADDRESS_COUNT, count);
+                else
+                {
+                    Storage.Put(Storage.CurrentContext, CONFIG_ADDRESS_COUNT, addrCount);
                 }
 
                 return true;
@@ -215,7 +245,8 @@ namespace OracleContract
              *  anchor_type_gbp    0.7813 *100000000
              *  anchor_type_gold   0.000838 * 100000000
              */
-              
+
+            /*
             if (operation == "setTypeB")
             {
                 if (args.Length != 4) return false;
@@ -234,7 +265,33 @@ namespace OracleContract
                 if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || state == 0)) return false;
 
                 return setTypeB(key, keyIndex, value);
+            }*/
+
+            if (operation == "setTypeB")
+            {
+                if (args.Length != 4) return false;
+
+                string key = (string)args[0];
+
+                BigInteger keyIndex = (BigInteger)args[1];
+
+                byte[] from = (byte[])args[2];
+
+                BigInteger value = (BigInteger)args[3];
+
+                byte[] bytePrefix = new byte[] { 0x10 };
+                 
+                BigInteger state = (BigInteger)Storage.Get(Storage.CurrentContext, bytePrefix.Concat(from)).AsBigInteger();
+
+                if (keyIndex != state) return false; //根据state的值和keyIndex不对应,禁止写入
+                
+                //允许合约或者授权账户调用
+                if (callscript.AsBigInteger() != from.AsBigInteger() && (!Runtime.CheckWitness(from) || state == 0)) return false;
+
+                return setTypeB(key, keyIndex, value);
             }
+            
+
             if (operation == "getTypeB")
             {
                 if (args.Length != 1) return false;
@@ -242,7 +299,7 @@ namespace OracleContract
 
                 return getTypeB(key);
             }
-            
+
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
             {
@@ -288,7 +345,6 @@ namespace OracleContract
             return true;
         }
 
-
         public static bool setTypeA(string key, BigInteger value)
         {
             if (key == null || key == "") return false;
@@ -312,7 +368,7 @@ namespace OracleContract
         public static bool setTypeB(string key,BigInteger keyIndex ,BigInteger value)
         {
             if (key == null || key == "") return false;
-
+             
             if (value < 0) return false;
 
             BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
