@@ -18,7 +18,13 @@ namespace OracleContract
         private const string CONFIG_SDS_PRICE = "sds_price";
         private const string CONFIG_ACCOUNT = "account_key";
         private const string CONFIG_ADDRESS_COUNT = "address_count_key";
-   
+
+        private static byte[] getTypeAParaWhitKey(byte[] account) => new byte[] { 0x01 }.Concat(account);
+        private static byte[] getTypeBParaWhitKey(byte[] account) => new byte[] { 0x10 }.Concat(account);
+
+        private static byte[] getTypeAKey(string strKey) => new byte[] { 0x03 }.Concat(strKey.AsByteArray()); 
+        private static byte[] getTypeBKey(BigInteger keyIndex) => new byte[] { 0x02 }.Concat(keyIndex.AsByteArray());
+
         //C端参数配置
         private const string CONFIG_LIQUIDATION_RATE_C = "liquidate_rate_c";
 
@@ -52,7 +58,9 @@ namespace OracleContract
                 //设置授权状态,state = 0未授权,state != 0 授权
                 BigInteger state = (BigInteger)args[1];
 
-                Storage.Put(Storage.CurrentContext, new byte[] { 0x01 }.Concat(account), state);
+                byte[] byteKey = getTypeAParaWhitKey(account);
+
+                Storage.Put(Storage.CurrentContext, byteKey, state);
 
                 return true;
             }
@@ -66,7 +74,9 @@ namespace OracleContract
 
                 if (!Runtime.CheckWitness(admin)) return false;
 
-                Storage.Delete(Storage.CurrentContext, new byte[] { 0x01 }.Concat(addr));
+                byte[] byteKey = getTypeAParaWhitKey(addr); 
+
+                Storage.Delete(Storage.CurrentContext, byteKey);
 
                 return true;
             }
@@ -85,11 +95,11 @@ namespace OracleContract
                    //设置授权状态state != 0 授权
                    BigInteger state = (BigInteger)args[1];
 
-                   byte[] bytePrefix = new byte[] { 0x10 };
+                   byte[] byteKey = getTypeBParaWhitKey(account);
 
-                   if (Storage.Get(Storage.CurrentContext, bytePrefix.Concat(account)).AsBigInteger() != 0 || state == 0) return false;
+                   if (Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger() != 0 || state == 0) return false;
 
-                   Storage.Put(Storage.CurrentContext, bytePrefix.Concat(account), state);
+                   Storage.Put(Storage.CurrentContext, byteKey, state);
 
                    BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
 
@@ -109,9 +119,9 @@ namespace OracleContract
 
                 if (!Runtime.CheckWitness(admin)) return false;
 
-                byte[] bytePrefix = new byte[] { 0x10 };
+                byte[] byteKey = getTypeBParaWhitKey(addr);
 
-                Storage.Delete(Storage.CurrentContext, bytePrefix.Concat(addr));
+                Storage.Delete(Storage.CurrentContext, byteKey);
 
                 BigInteger addrCount = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
 
@@ -254,7 +264,7 @@ namespace OracleContract
         {
             if (key == null || key == "") return false;
 
-            byte[] byteKey = new byte[] { 0x03 }.Concat(key.AsByteArray());
+            byte[] byteKey = getTypeAKey(key);
 
             Storage.Put(Storage.CurrentContext, byteKey, value);
             return true;
@@ -263,7 +273,7 @@ namespace OracleContract
         public static BigInteger getTypeA(string key)
         {
 
-            byte[] byteKey = new byte[] { 0x03 }.Concat(key.AsByteArray());
+            byte[] byteKey = getTypeAKey(key);
 
             BigInteger value = Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger();
 
@@ -279,12 +289,10 @@ namespace OracleContract
             BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
 
             if (keyIndex > count || keyIndex == 0) return false;
-
-            byte[] bytePrefix = new byte[] { 0x02 };
-
-            byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
              
-            Storage.Put(Storage.CurrentContext, bytePrefix.Concat(byteKey), value);
+            byte[] byteKey = getTypeBKey(keyIndex);
+             
+            Storage.Put(Storage.CurrentContext, byteKey, value);
             return true;
         }
 
@@ -295,7 +303,7 @@ namespace OracleContract
            
         public static BigInteger computeTypeB(string key) {
 
-            byte[] bytePrefix = new byte[] { 0x02 };
+            //byte[] byteKey =getTypeA();
 
             BigInteger count = Storage.Get(Storage.CurrentContext, CONFIG_ADDRESS_COUNT).AsBigInteger();
              
@@ -305,9 +313,9 @@ namespace OracleContract
             {
                 BigInteger keyIndex = i + 1;
 
-                byte[] byteKey = key.AsByteArray().Concat(keyIndex.AsByteArray());
+                byte[] byteKey = getTypeBKey(keyIndex);
 
-                prices[i] = Storage.Get(Storage.CurrentContext,bytePrefix.Concat(byteKey)).AsBigInteger(); 
+                prices[i] = Storage.Get(Storage.CurrentContext,byteKey).AsBigInteger(); 
             }
             
             BigInteger temp;
