@@ -225,7 +225,7 @@ namespace OracleContract
                 byte return_type = 0x05;
                 //1|0|4
                 bool need_storage = (bool)(object)05;
-                string name = "business";
+                string name = "datacenter";
                 string version = "1";
                 string author = "alchemint";
                 string email = "0";
