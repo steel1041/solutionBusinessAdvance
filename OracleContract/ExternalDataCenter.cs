@@ -47,33 +47,7 @@ namespace OracleCOntract2
             var callscript = ExecutionEngine.CallingScriptHash;
 
             var magicstr = "2018-08-29 15:16";
-
-            if (operation == "test")
-            {
-                BigInteger index = (BigInteger)args[0];
-                string para = (string)args[1];
-                byte[] addr = (byte[])args[2];
-
-                if (index == 0)
-                {
-                    return  Storage.Get(Storage.CurrentContext, GetParaCountKey(para)).AsBigInteger();
-                }
-
-                if (index == 1)
-                {
-                    return Storage.Get(Storage.CurrentContext, GetAddrIndexKey(para, addr)).AsBigInteger();
-                }
-
-                if (index == 2)
-                {
-                    BigInteger ind = Storage.Get(Storage.CurrentContext, GetAddrIndexKey(para, addr)).AsBigInteger();
-                    return Storage.Get(Storage.CurrentContext, GetTypeBKey(para, ind)).AsBigInteger();
-                }
-
-                return true;
-            }
             
-
             //管理员添加TypeA的合法参数
             if (operation == "addTypeAParaWhit")
             {
