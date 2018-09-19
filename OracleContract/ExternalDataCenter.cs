@@ -26,6 +26,8 @@ namespace OracleCOntract2
         private static byte[] GetParaAddrKey(string paraKey, byte[] addr) => new byte[] { 0x10 }.Concat(paraKey.AsByteArray().Concat(addr));
         private static byte[] GetParaCountKey(string paraKey) => new byte[] { 0x11 }.Concat(paraKey.AsByteArray());
         private static byte[] GetAddrIndexKey(string paraKey,byte[] addr) => new byte[] { 0x13 }.Concat(paraKey.AsByteArray().Concat(addr));
+        private static byte[] GetMedianKey(string key) => new byte[] { 0x20 }.Concat(key.AsByteArray());
+        private static byte[] GetAverageKey(string key) => new byte[] { 0x21 }.Concat(key.AsByteArray());
 
 
         //C端参数配置
@@ -45,7 +47,33 @@ namespace OracleCOntract2
             var callscript = ExecutionEngine.CallingScriptHash;
 
             var magicstr = "2018-08-29 15:16";
-             
+
+            if (operation == "test")
+            {
+                BigInteger index = (BigInteger)args[0];
+                string para = (string)args[1];
+                byte[] addr = (byte[])args[2];
+
+                if (index == 0)
+                {
+                    return  Storage.Get(Storage.CurrentContext, GetParaCountKey(para)).AsBigInteger();
+                }
+
+                if (index == 1)
+                {
+                    return Storage.Get(Storage.CurrentContext, GetAddrIndexKey(para, addr)).AsBigInteger();
+                }
+
+                if (index == 2)
+                {
+                    BigInteger ind = Storage.Get(Storage.CurrentContext, GetAddrIndexKey(para, addr)).AsBigInteger();
+                    return Storage.Get(Storage.CurrentContext, GetTypeBKey(para, ind)).AsBigInteger();
+                }
+
+                return true;
+            }
+            
+
             //管理员添加TypeA的合法参数
             if (operation == "addTypeAParaWhit")
             {
@@ -93,8 +121,6 @@ namespace OracleCOntract2
             if (operation == "setTypeA")
             {
                 if (args.Length != 2) return false;
-
-                if (!Runtime.CheckWitness(admin)) return false;
 
                 string key = (string)args[0];
 
@@ -180,6 +206,22 @@ namespace OracleCOntract2
                 return getTypeB(key);
             }
 
+            if (operation == "getAverage")
+            {
+                if (args.Length != 1) return false;
+                string key = (string)args[0];
+
+                return getAverage(key);
+            }
+
+            if (operation == "getMedian")
+            {
+                if (args.Length != 1) return false;
+                string key = (string)args[0];
+
+                return getMedian(key);
+            }
+
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
             {
@@ -227,27 +269,27 @@ namespace OracleCOntract2
 
         public static bool addParaAddrWhit(string para, byte[] addr, BigInteger state)
         {
-            if (!Runtime.CheckWitness(admin)) return false;
+           if (!Runtime.CheckWitness(admin)) return false;
 
-            if (addr.Length != 20) return false;
+           if (addr.Length != 20) return false;
 
-            byte[] byteKey = GetParaAddrKey(para, addr);
+           byte[] byteKey = GetParaAddrKey(para, addr);
 
-            if (Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger() != 0 || state == 0) return false;
+           if (Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger() != 0 || state == 0) return false;
 
-            Storage.Put(Storage.CurrentContext, byteKey, state);
+           Storage.Put(Storage.CurrentContext, byteKey, state);
 
-            byte[] paraCountByteKey = GetParaCountKey(para);
+           byte[] paraCountByteKey = GetParaCountKey(para);
 
-            BigInteger paraCount = Storage.Get(Storage.CurrentContext, paraCountByteKey).AsBigInteger();
+           BigInteger paraCount = Storage.Get(Storage.CurrentContext, paraCountByteKey).AsBigInteger();
             
-            paraCount += 1; 
+           paraCount += 1; 
 
            Storage.Put(Storage.CurrentContext, GetAddrIndexKey(para,addr), paraCount);
            
-            Storage.Put(Storage.CurrentContext, paraCountByteKey, paraCount);
+           Storage.Put(Storage.CurrentContext, paraCountByteKey, paraCount);
             
-            return true;
+           return true;
         }
 
         public static bool removeParaAddrWhit(string para, byte[] addr)
@@ -264,15 +306,17 @@ namespace OracleCOntract2
             
             return true;
         }
-
-
+        
         public static bool setTypeA(string key, BigInteger value)
         {
             if (key == null || key == "") return false;
 
+            if (!Runtime.CheckWitness(admin)) return false;
+
             byte[] byteKey = GetTypeAKey(key);
 
             Storage.Put(Storage.CurrentContext, byteKey, value);
+
             return true;
         }
 
@@ -292,18 +336,67 @@ namespace OracleCOntract2
 
             if (value < 0) return false;
 
+            if (!Runtime.CheckWitness(addr)) return false;
+
             BigInteger index = Storage.Get(Storage.CurrentContext, GetAddrIndexKey(key,addr)).AsBigInteger();
              
             Storage.Put(Storage.CurrentContext, GetTypeBKey(key,index), value);
+
+            getAverage(key);
+
+            getMedian(key);
+
             return true;
         }
 
         public static BigInteger getTypeB(string key)
         {
-            return computeTypeB(key);
+            return computeMedian(key);
         }
 
-        public static BigInteger computeTypeB(string key)
+        public static BigInteger getAverage(string key)
+        {
+            return Storage.Get(Storage.CurrentContext, GetAverageKey(key)).AsBigInteger();
+        }
+
+        public static BigInteger getMedian(string key)
+        {
+            return Storage.Get(Storage.CurrentContext, GetMedianKey(key)).AsBigInteger();
+        }
+
+        public static BigInteger computeAverage(string key)
+        { 
+            BigInteger paraCount = Storage.Get(Storage.CurrentContext, GetParaCountKey(key)).AsBigInteger();
+
+            var prices = new BigInteger[(int)paraCount];
+
+            for (int i = 0; i < prices.Length; i++)
+            {
+                BigInteger keyIndex = i + 1;
+
+                byte[] byteKey = GetTypeBKey(key, keyIndex);
+                BigInteger val = Storage.Get(Storage.CurrentContext, byteKey).AsBigInteger();
+
+                if (val != 0)
+                {
+                    prices[i] = val;
+                }
+            }
+
+            BigInteger sum = 0;
+            for (int i = 0; i < prices.Length; i++)
+            {
+                sum = sum + prices[i];
+            }
+
+            BigInteger value = sum / prices.Length;
+             
+            Storage.Put(Storage.CurrentContext, GetAverageKey(key), value);
+             
+            return value; 
+        }
+
+        public static BigInteger computeMedian(string key)
         {
             BigInteger paraCount = Storage.Get(Storage.CurrentContext, GetParaCountKey(key)).AsBigInteger();
 
@@ -347,6 +440,8 @@ namespace OracleCOntract2
 
                 value = (prices[index] + prices[index - 1]) / 2;
             }
+
+            Storage.Put(Storage.CurrentContext, GetMedianKey(key), value);
 
             return value;
         }
