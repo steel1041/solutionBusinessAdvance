@@ -178,6 +178,17 @@ namespace DataCenterContract2
                 return true;
             }
 
+            if (operation == "getStructConfig")
+            {
+                return getStructConfig();
+            }
+
+            if (operation == "setStructConfig")
+            {
+                if (!Runtime.CheckWitness(admin)) return false;
+                return setStructConfig();
+            }
+
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
             {
@@ -278,6 +289,30 @@ namespace DataCenterContract2
             return value;
         }
 
+        public static Config getStructConfig()
+        {
+            byte[] value = Storage.Get(Storage.CurrentContext, getConfigKey("structConfig".AsByteArray()));
+            if (value.Length > 0)
+                return Helper.Deserialize(value) as Config;
+            return new Config();
+        }
+
+        public static bool setStructConfig() {
+            Config config = new Config();
+            config.liquidate_rate_b = 50;
+            config.liquidate_rate_c = 150;
+            config.release_max_c = 1000000000000;
+            config.release_rate_c = 10;
+            config.resuce_rate_c = 160;
+            config.service_fee = 100000000;
+            config.clear_rate = 90;
+            config.bond_rate_c = 120;
+            config.fee_rate_c = 148;
+
+            Storage.Put(Storage.CurrentContext, getConfigKey("structConfig".AsByteArray()),Helper.Serialize(config));
+            return true;
+        }
+
         private static bool getMedian(int n)
         {
 
@@ -357,6 +392,37 @@ namespace DataCenterContract2
                 result *= x;
             }
             return result;
+        }
+
+        public class Config
+        {
+            //B端抵押率   50
+            public BigInteger liquidate_rate_b;
+
+            //C端抵押率  150
+            public BigInteger liquidate_rate_c;
+
+            //C端清算折扣  90
+            public BigInteger clear_rate;
+
+            //C端费用率  15秒的费率 乘以10的8次方  148
+            public BigInteger fee_rate_c;
+
+            //C端最高可清算抵押率  160
+            public BigInteger resuce_rate_c;
+
+            //C端伺机者可清算抵押率 120
+            public BigInteger bond_rate_c;
+
+            //C端发行费用 1
+            public BigInteger release_rate_c;
+
+            //B端发行费用  1000000000
+            public BigInteger service_fee;
+
+            //C端最大发行量  1000000000000
+            public BigInteger release_max_c;
+
         }
 
     }
