@@ -22,8 +22,19 @@ namespace ServiceContract
         //管理员账户
         private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
+        //Call合约账户
+        private const string CALL_ACCOUNT = "call_script";
+
         [DisplayName("sarTransfer")]
         public static event Action<byte[], byte[], byte[], BigInteger> Transferred;
+
+        private static byte[] getAccountKey(byte[] key) => new byte[] { 0x15 }.Concat(key);
+
+        private static byte[] getNameKey(byte[] name) => new byte[] { 0x12 }.Concat(name);
+
+        private static byte[] getTxidKey(byte[] txid) => new byte[] { 0x13 }.Concat(txid);
+
+        private static byte[] getBalanceKey(byte[] name,byte[] addr) => new byte[] { 0x11 }.Concat(name).Concat(addr);
 
         public static Object Main(string operation, params object[] args)
         {
@@ -114,7 +125,7 @@ namespace ServiceContract
                     if (!Runtime.CheckWitness(addr))
                         return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return init(name, symbol, decimals);
                 }
@@ -127,7 +138,7 @@ namespace ServiceContract
                     if (!Runtime.CheckWitness(addr))
                         return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return close(name, addr);
                 }
@@ -141,7 +152,7 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return increaseByBu(name, addr, value);
                 }
@@ -155,7 +166,7 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, new byte[] { 0x14 }.Concat("callScript".AsByteArray()));
+                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
                     if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
                     return destoryByBu(name, addr, value);
                 }
@@ -217,7 +228,7 @@ namespace ServiceContract
 
         public static TransferInfo getTXInfo(byte[] txid)
         {
-            var txidKey = new byte[] { 0x13 }.Concat(txid);
+            var txidKey = getTxidKey(txid);
             byte[] v = Storage.Get(Storage.CurrentContext, txidKey);
             if (v.Length == 0)
                 return null;
@@ -226,14 +237,14 @@ namespace ServiceContract
 
         private static bool setCallScript(byte[] callScript)
         {
-            var key = new byte[] { 0x14 }.Concat("callScript".AsByteArray());
+            var key = getAccountKey(CALL_ACCOUNT.AsByteArray());
             Storage.Put(Storage.CurrentContext, key, callScript);
             return true;
         }
 
         public static bool close(string name, byte[] addr)
         {
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
@@ -249,7 +260,7 @@ namespace ServiceContract
 
             if (value <= 0) return false;
 
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
@@ -269,7 +280,7 @@ namespace ServiceContract
 
             if (value <= 0) return false;
 
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
@@ -284,7 +295,7 @@ namespace ServiceContract
 
         public static bool init(string name, string symbol, byte decimals)
         {
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length != 0) return false;
 
@@ -299,7 +310,7 @@ namespace ServiceContract
 
         public static BigInteger totalSupply(string name)
         {
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return 0;
             return (Helper.Deserialize(token) as Tokenized).totalSupply;
@@ -307,7 +318,7 @@ namespace ServiceContract
 
         public static string name(string name)
         {
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return "";
             return (Helper.Deserialize(token) as Tokenized).name;
@@ -315,7 +326,7 @@ namespace ServiceContract
 
         public static string symbol(string name)
         {
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return "";
             return (Helper.Deserialize(token) as Tokenized).symbol;
@@ -323,7 +334,7 @@ namespace ServiceContract
 
         public static byte decimals(string name)
         {
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return 8;
             return (Helper.Deserialize(token) as Tokenized).decimals;
@@ -331,11 +342,11 @@ namespace ServiceContract
 
         public static BigInteger balanceOf(string name, byte[] address)
         {
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+            var key = getNameKey(name.AsByteArray());
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0 || address.Length != 20) return 0;
 
-            var balanceKey = new byte[] { 0x11 }.Concat(name.AsByteArray()).Concat(address);
+            var balanceKey = getBalanceKey(name.AsByteArray(),address);
             return Storage.Get(Storage.CurrentContext, balanceKey).AsBigInteger();
         }
 
@@ -345,12 +356,14 @@ namespace ServiceContract
             if (value <= 0) return false;
 
             if (from == to) return true;
-            var key = new byte[] { 0x12 }.Concat(name.AsByteArray());
+
+            var key = getNameKey(name.AsByteArray());
+
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
-            byte[] fromKey = new byte[] { 0x11 }.Concat(name.AsByteArray()).Concat(from);
-            byte[] toKey = new byte[] { 0x11 }.Concat(name.AsByteArray()).Concat(to);
+            byte[] fromKey = getBalanceKey(name.AsByteArray(),from);
+            byte[] toKey = getBalanceKey(name.AsByteArray(),to);
             //付款方
             if (from.Length > 0)
             {
@@ -368,7 +381,7 @@ namespace ServiceContract
                 Storage.Put(Storage.CurrentContext, toKey, to_value + value);
             }
             //记录交易信息
-            setTxInfo(name, fromKey, toKey, value);
+            //setTxInfo(name, fromKey, toKey, value);
 
             //notify,这里from,to无需加前缀
             Transferred(name.AsByteArray(), from, to, value);
@@ -385,7 +398,7 @@ namespace ServiceContract
             byte[] txinfo = Helper.Serialize(info);
 
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
-            var txidKey = new byte[] { 0x13 }.Concat(txid);
+            var txidKey = getTxidKey(txid);
             Storage.Put(Storage.CurrentContext, txidKey, txinfo);
         }
 
@@ -410,22 +423,6 @@ namespace ServiceContract
             public byte[] from;
             public byte[] to;
             public BigInteger value;
-        }
-
-
-        private static byte[] ConvertN(BigInteger n)
-        {
-            if (n == 0)
-                return new byte[2] { 0x00, 0x00 };
-            if (n == 1)
-                return new byte[2] { 0x00, 0x01 };
-            if (n == 2)
-                return new byte[2] { 0x00, 0x02 };
-            if (n == 3)
-                return new byte[2] { 0x00, 0x03 };
-            if (n == 4)
-                return new byte[2] { 0x00, 0x04 };
-            throw new Exception("not support.");
         }
 
         //public static bool IsPayable(byte[] to)
