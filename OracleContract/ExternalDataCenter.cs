@@ -17,8 +17,7 @@ namespace OracleCOntract2
         private const string CONFIG_SDS_PRICE = "sds_price";
         private const string CONFIG_ACCOUNT = "account_key";
         private const string CONFIG_ADDRESS_COUNT = "address_count_key";
-
-
+         
         private static byte[] GetTypeAParaKey(byte[] account) => new byte[] { 0x01 }.Concat(account); 
         private static byte[] GetTypeAKey(string strKey) => new byte[] { 0x02 }.Concat(strKey.AsByteArray());
         private static byte[] GetTypeBKey(string key, BigInteger index) => new byte[] { 0x03 }.Concat(key.AsByteArray().Concat(index.AsByteArray()));
@@ -46,7 +45,7 @@ namespace OracleCOntract2
         {
             var callscript = ExecutionEngine.CallingScriptHash;
 
-            var magicstr = "2018-08-29 15:16";
+            var magicstr = "2018-09-19 15:16";
             
             //管理员添加TypeA的合法参数
             if (operation == "addTypeAParaWhit")
@@ -179,23 +178,7 @@ namespace OracleCOntract2
 
                 return getTypeB(key);
             }
-
-            if (operation == "getAverage")
-            {
-                if (args.Length != 1) return false;
-                string key = (string)args[0];
-
-                return getAverage(key);
-            }
-
-            if (operation == "getMedian")
-            {
-                if (args.Length != 1) return false;
-                string key = (string)args[0];
-
-                return getMedian(key);
-            }
-
+             
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
             {
@@ -290,7 +273,7 @@ namespace OracleCOntract2
             byte[] byteKey = GetTypeAKey(key);
 
             Storage.Put(Storage.CurrentContext, byteKey, value);
-
+              
             return true;
         }
 
@@ -316,16 +299,21 @@ namespace OracleCOntract2
              
             Storage.Put(Storage.CurrentContext, GetTypeBKey(key,index), value);
 
-            getAverage(key);
+            computeAverage(key);
 
-            getMedian(key);
+            computeMedian(key); 
 
             return true;
         }
 
         public static BigInteger getTypeB(string key)
         {
-            return computeMedian(key);
+            if (getTypeA(key) == 0)
+            {
+                return getMedian(key);
+            }
+
+            return getAverage(key);
         }
 
         public static BigInteger getAverage(string key)
