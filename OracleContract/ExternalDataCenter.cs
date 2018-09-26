@@ -25,8 +25,11 @@ namespace OracleCOntract2
         private static byte[] GetParaAddrKey(string paraKey, byte[] addr) => new byte[] { 0x10 }.Concat(paraKey.AsByteArray().Concat(addr));
         private static byte[] GetParaCountKey(string paraKey) => new byte[] { 0x11 }.Concat(paraKey.AsByteArray());
         private static byte[] GetAddrIndexKey(string paraKey,byte[] addr) => new byte[] { 0x13 }.Concat(paraKey.AsByteArray().Concat(addr));
+
         private static byte[] GetMedianKey(string key) => new byte[] { 0x20 }.Concat(key.AsByteArray());
-        private static byte[] GetAverageKey(string key) => new byte[] { 0x21 }.Concat(key.AsByteArray());
+        private static byte[] GetAverageKey(string key) => new byte[] { 0x21 }.Concat(key.AsByteArray()); 
+
+        private static byte[] GetConfigKey(byte[] key) => new byte[] { 0x30 }.Concat(key);
 
 
         //C端参数配置
@@ -45,7 +48,7 @@ namespace OracleCOntract2
         {
             var callscript = ExecutionEngine.CallingScriptHash;
 
-            var magicstr = "2018-09-19 15:16";
+            var magicstr = "2018-09-26 14:16";
             
             //管理员添加TypeA的合法参数
             if (operation == "addTypeAParaWhit")
@@ -178,7 +181,18 @@ namespace OracleCOntract2
 
                 return getTypeB(key);
             }
-             
+
+            if (operation == "getStructConfig")
+            {
+                return getStructConfig();
+            }
+
+            if (operation == "setStructConfig")
+            {
+                if (!Runtime.CheckWitness(admin)) return false;
+                return setStructConfig();
+            } 
+
             #region 升级合约,耗费490,仅限管理员
             if (operation == "upgrade")
             {
@@ -316,6 +330,36 @@ namespace OracleCOntract2
             return getAverage(key);
         }
 
+        public static Config getStructConfig()
+        {
+            byte[] value = Storage.Get(Storage.CurrentContext, GetConfigKey("structConfig".AsByteArray()));
+            if (value.Length > 0)
+                return Helper.Deserialize(value) as Config;
+            return new Config();
+        }
+         
+        public static bool setStructConfig()
+        {
+            Config config = new Config();
+
+            config.liquidate_line_rate_b = getTypeA("liquidate_line_rate_b"); //50
+            config.liquidate_line_rate_c = getTypeA("liquidate_line_rate_c"); //150
+
+            config.debt_top_c = getTypeA("debt_top_c"); //1000000000000;
+            config.issuing_fee_c = getTypeA("issuing_fee_c"); //1000;
+            config.issuing_fee_b = getTypeA("issuing_fee_b"); //1000000000;
+            config.liquidate_top_rate_c = getTypeA("liquidate_top_rate_c");// 160;
+            
+            config.liquidate_dis_rate_c = getTypeA("liquidate_dis_rate_c"); // 90;
+            config.liquidate_line_rateT_c = getTypeA("liquidate_line_rateT_c"); // 120; 
+
+            config.fee_rate_c = getTypeA("fee_rate_c"); //148;
+
+            Storage.Put(Storage.CurrentContext, GetConfigKey("structConfig".AsByteArray()), Helper.Serialize(config));
+            return true;
+        }
+
+
         public static BigInteger getAverage(string key)
         {
             return Storage.Get(Storage.CurrentContext, GetAverageKey(key)).AsBigInteger();
@@ -406,6 +450,37 @@ namespace OracleCOntract2
             Storage.Put(Storage.CurrentContext, GetMedianKey(key), value);
 
             return value;
+        }
+        
+        public class Config
+        {
+            //B端抵押率   50
+            public BigInteger liquidate_line_rate_b;
+
+            //C端抵押率  150
+            public BigInteger liquidate_line_rate_c;
+
+            //C端清算折扣  90
+            public BigInteger liquidate_dis_rate_c;
+
+            //C端费用率  15秒的费率 乘以10的8次方  148
+            public BigInteger fee_rate_c;
+
+            //C端最高可清算抵押率  160
+            public BigInteger liquidate_top_rate_c;
+
+            //C端伺机者可清算抵押率 120
+            public BigInteger liquidate_line_rateT_c;
+
+            //C端发行费用 1
+            public BigInteger issuing_fee_c; 
+
+            //B端发行费用  1000000000
+            public BigInteger issuing_fee_b;
+
+            //C端最大发行量(债务上限)  1000000000000
+            public BigInteger debt_top_c;
+
         }
     }
 }
