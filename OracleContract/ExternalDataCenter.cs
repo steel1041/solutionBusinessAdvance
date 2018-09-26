@@ -11,13 +11,7 @@ namespace OracleCOntract2
     {
         //管理员账户 
         private static readonly byte[] admin = Helper.ToScriptHash("AQdP56hHfo54JCWfpPw4MXviJDtQJMtXFa");
-
-        private const string CONFIG_NEO_PRICE = "neo_price";
-        private const string CONFIG_GAS_PRICE = "gas_price";
-        private const string CONFIG_SDS_PRICE = "sds_price";
-        private const string CONFIG_ACCOUNT = "account_key";
-        private const string CONFIG_ADDRESS_COUNT = "address_count_key";
-         
+        
         private static byte[] GetTypeAParaKey(byte[] account) => new byte[] { 0x01 }.Concat(account); 
         private static byte[] GetTypeAKey(string strKey) => new byte[] { 0x02 }.Concat(strKey.AsByteArray());
         private static byte[] GetTypeBKey(string key, BigInteger index) => new byte[] { 0x03 }.Concat(key.AsByteArray().Concat(index.AsByteArray()));
@@ -30,20 +24,7 @@ namespace OracleCOntract2
         private static byte[] GetAverageKey(string key) => new byte[] { 0x21 }.Concat(key.AsByteArray()); 
 
         private static byte[] GetConfigKey(byte[] key) => new byte[] { 0x30 }.Concat(key);
-
-
-        //C端参数配置
-        private const string CONFIG_LIQUIDATION_RATE_C = "liquidate_rate_c";
-
-        private const string CONFIG_WARNING_RATE_C = "warning_rate_c";
-
-        //B端参数配置
-        private const string CONFIG_LIQUIDATION_RATE_B = "liquidate_rate_b";
-
-        private const string CONFIG_WARNING_RATE_B = "warning_rate_b";
-
-        //initToken 手续费
-        private const string SERVICE_FEE = "service_fee";
+        
         public static Object Main(string operation, params object[] args)
         {
             var callscript = ExecutionEngine.CallingScriptHash;
