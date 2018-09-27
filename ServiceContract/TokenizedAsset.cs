@@ -83,31 +83,34 @@ namespace ServiceContract
                     string name = (string)args[0];
                     byte[] from = (byte[])args[1];
                     byte[] to = (byte[])args[2];
-                    BigInteger value = (BigInteger)args[3];
+                    BigInteger amount = (BigInteger)args[3];
 
-                    if (from.Length != 20 || to.Length != 20) return false;
-                    //没有from签名，不让转
-                    if (!Runtime.CheckWitness(from))
+                    if (from.Length != 20 || to.Length != 20)
+                        throw new InvalidOperationException("The parameters from and to SHOULD be 20-byte addresses.");
+
+                    if (amount <= 0)
+                        throw new InvalidOperationException("The parameter amount MUST be greater than 0.");
+
+                    if (!Runtime.CheckWitness(from) && from.AsBigInteger() != callscript.AsBigInteger())
                         return false;
-
                     //如果to是不可收钱合约,不让转
                     //if (!IsPayable(to))
                     //    return false;
-                    return transfer(name, from, to, value);
+                    return transfer(name, from, to, amount);
                 }
-                if (operation == "transfer_contract")
-                {
-                    if (args.Length != 4) return false;
-                    string name = (string)args[0];
-                    byte[] from = (byte[])args[1];
-                    byte[] to = (byte[])args[2];
-                    if (from.Length != 20 || to.Length != 20) return false;
+                //if (operation == "transfer_contract")
+                //{
+                //    if (args.Length != 4) return false;
+                //    string name = (string)args[0];
+                //    byte[] from = (byte[])args[1];
+                //    byte[] to = (byte[])args[2];
+                //    if (from.Length != 20 || to.Length != 20) return false;
 
-                    BigInteger value = (BigInteger)args[3];
-                    if (callscript.AsBigInteger() != from.AsBigInteger())
-                        return false;
-                    return transfer(name, from, to, value);
-                }
+                //    BigInteger value = (BigInteger)args[3];
+                //    if (callscript.AsBigInteger() != from.AsBigInteger())
+                //        return false;
+                //    return transfer(name, from, to, value);
+                //}
                 if (operation == "getTXInfo")
                 {
                     if (args.Length != 1) return 0;
