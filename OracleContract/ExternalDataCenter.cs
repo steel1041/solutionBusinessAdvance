@@ -293,9 +293,7 @@ namespace OracleCOntract2
             BigInteger index = Storage.Get(Storage.CurrentContext, GetAddrIndexKey(key,addr)).AsBigInteger();
              
             Storage.Put(Storage.CurrentContext, GetTypeBKey(key,index), value);
-
-            computeAverage(key);
-
+             
             computeMedian(key); 
 
             return true;
@@ -303,12 +301,7 @@ namespace OracleCOntract2
 
         public static BigInteger getTypeB(string key)
         {
-            if (getTypeA(key) == 0)
-            {
-                return getMedian(key);
-            }
-
-            return getAverage(key);
+          return getMedian(key);
         }
 
         public static Config getStructConfig()
@@ -327,7 +320,7 @@ namespace OracleCOntract2
             config.liquidate_line_rate_c = getTypeA("liquidate_line_rate_c"); //150
 
             config.debt_top_c = getTypeA("debt_top_c"); //1000000000000;
-            config.issuing_fee_c = getTypeA("issuing_fee_c"); //1000;
+           
             config.issuing_fee_b = getTypeA("issuing_fee_b"); //1000000000;
             config.liquidate_top_rate_c = getTypeA("liquidate_top_rate_c");// 160;
             
@@ -339,8 +332,7 @@ namespace OracleCOntract2
             Storage.Put(Storage.CurrentContext, GetConfigKey("structConfig".AsByteArray()), Helper.Serialize(config));
             return true;
         }
-
-
+        
         public static BigInteger getAverage(string key)
         {
             return Storage.Get(Storage.CurrentContext, GetAverageKey(key)).AsBigInteger();
