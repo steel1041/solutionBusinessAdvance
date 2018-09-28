@@ -194,7 +194,7 @@ namespace BusinessContract
                 //销毁
                 if (operation == "destory")
                 {
-                    if (args.Length != 5) return false;
+                    if (args.Length != 2) return false;
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
                    
@@ -220,7 +220,7 @@ namespace BusinessContract
                     byte[] parameter_list = new byte[] { 0x07, 0x10 };
                     byte return_type = 0x05;
                     //1|2|4
-                    bool need_storage = (bool)(object)05;
+                    bool need_storage = (bool)(object)07;
                     string name = "business";
                     string version = "1";
                     string author = "alchemint";
