@@ -38,7 +38,8 @@ namespace ServiceContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-08-29";
+            var magicstr = "2018-10-11";
+
             if (Runtime.Trigger == TriggerType.Verification)
             {
                 return false;
@@ -97,25 +98,6 @@ namespace ServiceContract
                     //if (!IsPayable(to))
                     //    return false;
                     return transfer(name, from, to, amount);
-                }
-                //if (operation == "transfer_contract")
-                //{
-                //    if (args.Length != 4) return false;
-                //    string name = (string)args[0];
-                //    byte[] from = (byte[])args[1];
-                //    byte[] to = (byte[])args[2];
-                //    if (from.Length != 20 || to.Length != 20) return false;
-
-                //    BigInteger value = (BigInteger)args[3];
-                //    if (callscript.AsBigInteger() != from.AsBigInteger())
-                //        return false;
-                //    return transfer(name, from, to, value);
-                //}
-                if (operation == "getTXInfo")
-                {
-                    if (args.Length != 1) return 0;
-                    byte[] txid = (byte[])args[0];
-                    return getTXInfo(txid);
                 }
                 if (operation == "init")
                 {
@@ -227,15 +209,6 @@ namespace ServiceContract
 
             }
             return true;
-        }
-
-        public static TransferInfo getTXInfo(byte[] txid)
-        {
-            var txidKey = getTxidKey(txid);
-            byte[] v = Storage.Get(Storage.CurrentContext, txidKey);
-            if (v.Length == 0)
-                return null;
-            return (TransferInfo)Helper.Deserialize(v);
         }
 
         private static bool setCallScript(byte[] callScript)
@@ -383,26 +356,10 @@ namespace ServiceContract
                 BigInteger to_value = Storage.Get(Storage.CurrentContext, toKey).AsBigInteger();
                 Storage.Put(Storage.CurrentContext, toKey, to_value + value);
             }
-            //记录交易信息
-            //setTxInfo(name, fromKey, toKey, value);
 
             //notify,这里from,to无需加前缀
             Transferred(name.AsByteArray(), from, to, value);
             return true;
-        }
-
-        private static void setTxInfo(string name, byte[] from, byte[] to, BigInteger value)
-        {
-            TransferInfo info = new TransferInfo();
-            info.name = name;
-            info.from = from;
-            info.to = to;
-            info.value = value;
-            byte[] txinfo = Helper.Serialize(info);
-
-            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
-            var txidKey = getTxidKey(txid);
-            Storage.Put(Storage.CurrentContext, txidKey, txinfo);
         }
 
         public class Tokenized
@@ -418,14 +375,6 @@ namespace ServiceContract
 
             //小数位数
             public byte decimals;
-        }
-
-        public class TransferInfo
-        {
-            public string name;
-            public byte[] from;
-            public byte[] to;
-            public BigInteger value;
         }
 
         //public static bool IsPayable(byte[] to)
