@@ -64,6 +64,8 @@ namespace BusinessContract
 
         private static byte[] getConfigKey(byte[] key) => new byte[] { 0x17 }.Concat(key);
 
+        private static byte[] getRedeemKey(byte[] addr) => new byte[] { 0x18 }.Concat(addr);
+
         //交易类型
         public enum ConfigTranType
         {
@@ -204,6 +206,15 @@ namespace BusinessContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     return withdraw(name, addr, value);
+                }
+                //提现清算额
+                if (operation == "claimRedeem")
+                {
+                    if (args.Length != 1) return false;
+                    byte[] addr = (byte[])args[1];
+
+                    if (!Runtime.CheckWitness(addr)) return false;
+                    return claimRedeem(addr);
                 }
                 if (operation == "setAccount")
                 {
@@ -1054,23 +1065,38 @@ namespace BusinessContract
             var TokenizedContract2 = (NEP5Contract)tokenizedAssetID.ToDelegate();
             if (!(bool)TokenizedContract2("destory", arg)) throw new InvalidOperationException("The parameter is exception.");
 
-            object[] param = new object[3];
-            param[0] = from;
-            param[1] = addr;
-            param[2] = redeem;
-
-            var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
-            if (!(bool)SDSContract("transfer_contract", param)) throw new InvalidOperationException("The parameter is exception.");
-
             info.locked = info.locked - redeem;
             info.hasDrawed = info.hasDrawed - balance;
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
+
+            var redeemKey = getRedeemKey(addr);
+            BigInteger redeemBalance = Storage.Get(Storage.CurrentContext, redeemKey).AsBigInteger();
+            Storage.Put(Storage.CurrentContext,redeemKey,redeemBalance + redeem);
 
             //记录交易详细数据
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
 
             //触发操作事件
             Operated(info.name.AsByteArray(), addr, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_REDEEM, redeem);
+            return true;
+        }
+
+        private static bool claimRedeem(byte[] addr) {
+            var redeemKey = getRedeemKey(addr);
+            BigInteger redeemBalance = Storage.Get(Storage.CurrentContext, redeemKey).AsBigInteger();
+
+            byte[] from = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(SDS_ACCOUNT.AsByteArray()));
+
+            object[] param = new object[3];
+            param[0] = from;
+            param[1] = addr;
+            param[2] = redeemBalance;
+
+            var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
+            if (!(bool)SDSContract("transfer_contract", param)) throw new InvalidOperationException("The parameter is exception.");
+
+            Storage.Delete(Storage.CurrentContext, redeemKey);
             return true;
         }
 
