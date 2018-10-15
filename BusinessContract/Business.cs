@@ -1001,7 +1001,7 @@ namespace BusinessContract
             if (!checkState(SAR_STATE))
                 throw new InvalidOperationException("The sar state MUST be pause.");
 
-            var key = getSARKey(addr);
+            var key = getSARKey(sarAddr);
             byte[] sar = Storage.Get(Storage.CurrentContext, key);
             if (sar.Length == 0) throw new InvalidOperationException("The sar must not be null.");
 
@@ -1041,25 +1041,6 @@ namespace BusinessContract
                 if (totalSupply <= 0) throw new InvalidOperationException("The parameter is exception.");
             }
 
-            BigInteger sds_price = 0;
-            BigInteger anchor_price = 0;
-
-            {
-                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
-                //调用Oracle,查询SDS价格，如：8$=价格*100000000
-                arg = new object[1];
-                arg[0] = CONFIG_SDS_PRICE;
-                sds_price = (BigInteger)OracleContract("getTypeB", arg);
-            }
-
-            {
-                var OracleContract = (NEP5Contract)oracleAssetID.ToDelegate();
-                //调用Oracle,查询锚定价格，如：100$=价格*100000000
-                arg = new object[1];
-                arg[0] = info.anchor;
-                anchor_price = (BigInteger)OracleContract("getTypeB", arg);
-            }
-
             //计算可赎回的SDS
             BigInteger redeem = balance * info.locked/ totalSupply;
             if (redeem <= 0) throw new InvalidOperationException("The parameter is exception.");
@@ -1080,22 +1061,14 @@ namespace BusinessContract
 
             var SDSContract = (NEP5Contract)sdsAssetID.ToDelegate();
             if (!(bool)SDSContract("transfer_contract", param)) throw new InvalidOperationException("The parameter is exception.");
+
             info.locked = info.locked - redeem;
             info.hasDrawed = info.hasDrawed - balance;
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(info));
 
             //记录交易详细数据
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
-            SARTransferDetail detail = new SARTransferDetail();
-            detail.from = addr;
-            detail.sarTxid = info.txid;
-            detail.txid = txid;
-            detail.type = (int)ConfigTranType.TRANSACTION_TYPE_REDEEM;
-            detail.operated = redeem;
-            detail.hasLocked = info.locked;
-            detail.hasDrawed = info.hasDrawed;
 
-            Storage.Put(Storage.CurrentContext, getTxidKey(txid), Helper.Serialize(detail));
             //触发操作事件
             Operated(info.name.AsByteArray(), addr, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_REDEEM, redeem);
             return true;
