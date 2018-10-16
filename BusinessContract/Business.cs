@@ -50,6 +50,9 @@ namespace BusinessContract
         //Tokenized合约账户
         private const string TOKENIZED_ACCOUNT = "tokenized_account";
 
+        //admin账户
+        private const string ADMIN_ACCOUNT = "admin_account";
+
         private const string SERVICE_FEE = "issuing_fee_b";
 
         private const string SAR_STATE = "sar_state";
@@ -65,6 +68,7 @@ namespace BusinessContract
         private static byte[] getConfigKey(byte[] key) => new byte[] { 0x17 }.Concat(key);
 
         private static byte[] getRedeemKey(byte[] addr) => new byte[] { 0x18 }.Concat(addr);
+
 
         //交易类型
         public enum ConfigTranType
@@ -211,7 +215,7 @@ namespace BusinessContract
                 if (operation == "claimRedeem")
                 {
                     if (args.Length != 1) return false;
-                    byte[] addr = (byte[])args[1];
+                    byte[] addr = (byte[])args[0];
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     return claimRedeem(addr);
@@ -221,8 +225,8 @@ namespace BusinessContract
                     if (args.Length != 2) return false;
                     string key = (string)args[0];
                     byte[] address = (byte[])args[1];
-                    if (!Runtime.CheckWitness(admin)) return false;
 
+                    if (!checkAdmin()) return false;
                     return setAccount(key,address);
                 }
                 //个人用户赎回不安全的仓位
@@ -243,7 +247,7 @@ namespace BusinessContract
                     string name = (string)args[0];
                     byte[] addr = (byte[])args[1];
 
-                    if (!Runtime.CheckWitness(admin)) return false;
+                    if (!checkAdmin()) return false;
                     return settingSAR(name, addr);
                 }
                 //设置全局参数
@@ -252,6 +256,8 @@ namespace BusinessContract
                     if (args.Length != 2) return false;
                     string key = (string)args[0];
                     BigInteger value = (BigInteger)args[1];
+
+                    if (!checkAdmin()) return false;
                     return setConfig(key, value);
                 }
                 //查询全局参数
@@ -276,8 +282,7 @@ namespace BusinessContract
                 if (operation == "upgrade")
                 {
                     //不是管理员 不能操作
-                    if (!Runtime.CheckWitness(admin))
-                        return false;
+                    if (!checkAdmin()) return false;
 
                     if (args.Length != 1 && args.Length != 9)
                         return false;
@@ -314,6 +319,21 @@ namespace BusinessContract
                 }
                 #endregion
 
+            }
+            return true;
+        }
+
+        private static bool checkAdmin()
+        {
+            byte[] currAdmin = Storage.Get(Storage.CurrentContext, getAccountKey(ADMIN_ACCOUNT.AsByteArray()));
+            if (currAdmin.Length > 0)
+            {
+                //当前地址和配置地址必须一致
+                if (!Runtime.CheckWitness(currAdmin)) return false;
+            }
+            else
+            {
+                if (!Runtime.CheckWitness(admin)) return false;
             }
             return true;
         }
@@ -1110,9 +1130,6 @@ namespace BusinessContract
 
         private static Boolean setConfig(string configKey, BigInteger value)
         {
-            //只允许超管操作
-            if (!Runtime.CheckWitness(admin)) return false;
-
             byte[] key = getConfigKey(configKey.AsByteArray());
             StorageMap config = Storage.CurrentContext.CreateMap(nameof(config));
             config.Put(key, value);

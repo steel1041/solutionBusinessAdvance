@@ -25,6 +25,9 @@ namespace ServiceContract
         //Call合约账户
         private const string CALL_ACCOUNT = "call_script";
 
+        //admin账户
+        private const string ADMIN_ACCOUNT = "admin_account";
+
         [DisplayName("sarTransfer")]
         public static event Action<byte[], byte[], byte[], BigInteger> Transferred;
 
@@ -38,7 +41,7 @@ namespace ServiceContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-10-11";
+            var magicstr = "2018-10-16";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -156,21 +159,20 @@ namespace ServiceContract
                     return destoryByBu(name, addr, value);
                 }
                 //设置跳板调用合约地址
-                if (operation == "setCallScript")
+                if (operation == "setAccount")
                 {
-                    if (args.Length != 1) return false;
-                    byte[] callScript = (byte[])args[0];
+                    if (args.Length != 2) return false;
+                    string key = (string)args[0];
+                    byte[] address = (byte[])args[1];
 
-                    //超级管理员设置跳板合约地址
-                    if (!Runtime.CheckWitness(admin)) return false;
-                    return setCallScript(callScript);
+                    if (!checkAdmin()) return false;
+                    return setAccount(key, address);
                 }
                 #region 升级合约,耗费490,仅限管理员
                 if (operation == "upgrade")
                 {
                     //不是管理员 不能操作
-                    if (!Runtime.CheckWitness(admin))
-                        return false;
+                    if (!checkAdmin()) return false;
 
                     if (args.Length != 1 && args.Length != 9)
                         return false;
@@ -211,10 +213,24 @@ namespace ServiceContract
             return true;
         }
 
-        private static bool setCallScript(byte[] callScript)
+        private static bool checkAdmin()
         {
-            var key = getAccountKey(CALL_ACCOUNT.AsByteArray());
-            Storage.Put(Storage.CurrentContext, key, callScript);
+            byte[] currAdmin = Storage.Get(Storage.CurrentContext, getAccountKey(ADMIN_ACCOUNT.AsByteArray()));
+            if (currAdmin.Length > 0)
+            {
+                //当前地址和配置地址必须一致
+                if (!Runtime.CheckWitness(currAdmin)) return false;
+            }
+            else
+            {
+                if (!Runtime.CheckWitness(admin)) return false;
+            }
+            return true;
+        }
+
+        private static bool setAccount(string key, byte[] addr)
+        {
+            Storage.Put(Storage.CurrentContext, getAccountKey(key.AsByteArray()), addr);
             return true;
         }
 
