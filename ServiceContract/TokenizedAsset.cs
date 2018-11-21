@@ -20,7 +20,7 @@ namespace ServiceContract
         */
 
         //管理员账户
-        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
+        private static readonly byte[] admin = Helper.ToScriptHash("AaBmSJ4Beeg2AeKczpXk89DnmVrPn3SHkU");
 
         //Call合约账户
         private const string CALL_ACCOUNT = "call_script";
@@ -41,7 +41,7 @@ namespace ServiceContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-10-16";
+            var magicstr = "2018-10-18";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -97,9 +97,7 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(from) && from.AsBigInteger() != callscript.AsBigInteger())
                         return false;
-                    //如果to是不可收钱合约,不让转
-                    //if (!IsPayable(to))
-                    //    return false;
+
                     return transfer(name, from, to, amount);
                 }
                 if (operation == "init")
@@ -256,7 +254,8 @@ namespace ServiceContract
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
-            transfer(name, null, to, value);
+            if (!transfer(name, null, to, value))
+                throw new InvalidOperationException("Operation is error.");
 
             Tokenized t = Helper.Deserialize(token) as Tokenized;
             t.totalSupply = t.totalSupply + value;
@@ -276,7 +275,8 @@ namespace ServiceContract
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
-            transfer(name, from, null, value);
+            if(!transfer(name, from, null, value))
+                throw new InvalidOperationException("Operation is error.");
 
             Tokenized t = Helper.Deserialize(token) as Tokenized;
             t.totalSupply = t.totalSupply - value;
@@ -392,14 +392,6 @@ namespace ServiceContract
             //小数位数
             public byte decimals;
         }
-
-        //public static bool IsPayable(byte[] to)
-        //{
-        //    var c = Blockchain.GetContract(to);
-        //    if (c.Equals(null))
-        //        return true;
-        //    return c.IsPayable;
-        //}
 
     }
 }

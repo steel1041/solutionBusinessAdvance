@@ -16,7 +16,7 @@ namespace BusinessContract
         * map(str,address)       存储配置信息   key = 0x14+str
        */
         //管理员账户
-        private static readonly byte[] admin = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
+        private static readonly byte[] admin = Helper.ToScriptHash("AaBmSJ4Beeg2AeKczpXk89DnmVrPn3SHkU");
 
         public delegate object NEP5Contract(string method, object[] args);
 
@@ -40,6 +40,9 @@ namespace BusinessContract
 
         //新合约收款账户
         private const string STORAGE_ACCOUNT_NEW = "storage_account_new";
+
+        //老合约地址
+        private const string STORAGE_ACCOUNT_OLD = "storage_account_old";
 
         //SDS合约账户
         private const string SDS_ACCOUNT = "sds_account";
@@ -82,7 +85,6 @@ namespace BusinessContract
             TRANSACTION_TYPE_SHUT,//关闭
             TRANSACTION_TYPE_REDEEM,//用户 赎回
             TRANSACTION_TYPE_DESTORY//销毁
-
         }
 
         //SAR状态
@@ -96,7 +98,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-09-12 14:45";
+            var magicstr = "2018-10-18 14:45";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {
@@ -104,6 +106,8 @@ namespace BusinessContract
             }
             else if (Runtime.Trigger == TriggerType.Application)
             {
+                var callscript = ExecutionEngine.CallingScriptHash;
+
                 if (operation == "getSAR4B")
                 {
                     if (args.Length != 1) return false;
@@ -136,8 +140,6 @@ namespace BusinessContract
                     int status = (int)args[7];
                     string anchor = (string)args[8];
 
-                    if (!Runtime.CheckWitness(addr)) return false;
-
                     SARInfo sar = new SARInfo();
                     sar.symbol = symbol;
                     sar.anchor = anchor;
@@ -148,6 +150,10 @@ namespace BusinessContract
                     sar.owner = addr;
                     sar.status = status;
                     sar.txid = txid;
+                    //存的老合约地址
+                    byte[] account = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT_OLD.AsByteArray()));
+                    if (account.AsBigInteger() != callscript.AsBigInteger()) return false;
+
                     return createSAR4B(addr, sar);
                 }
                 //转移SAR合约中NEP5资产
@@ -229,7 +235,7 @@ namespace BusinessContract
                     if (!checkAdmin()) return false;
                     return setAccount(key,address);
                 }
-                //个人用户赎回不安全的仓位
+                //用户赎回不安全的仓位
                 if (operation == "redeem")
                 {
                     if (args.Length != 2) return false;
@@ -260,6 +266,16 @@ namespace BusinessContract
                     if (!checkAdmin()) return false;
                     return setConfig(key, value);
                 }
+                //销毁
+                if (operation == "destory")
+                {
+                    if (args.Length != 2) return false;
+                    string name = (string)args[0];
+                    byte[] addr = (byte[])args[1];
+
+                    if (!Runtime.CheckWitness(addr)) return false;
+                    return destory(name, addr);
+                }
                 //查询全局参数
                 if (operation == "getConfig")
                 {
@@ -268,15 +284,12 @@ namespace BusinessContract
 
                     return getConfig(key);
                 }
-                //销毁
-                if (operation == "destory")
+                //查询债仓详细操作记录
+                if (operation == "getSARTxInfo")
                 {
-                    if (args.Length != 2) return false;
-                    string name = (string)args[0];
-                    byte[] addr = (byte[])args[1];
-                   
-                    if (!Runtime.CheckWitness(addr)) return false;
-                    return destory(name, addr);
+                    if (args.Length != 1) return false;
+                    byte[] txid = (byte[])args[0];
+                    return getSARTxInfo(txid);
                 }
                 #region 升级合约,耗费490,仅限管理员
                 if (operation == "upgrade")
@@ -321,6 +334,14 @@ namespace BusinessContract
 
             }
             return true;
+        }
+
+        private static SARTransferDetail getSARTxInfo(byte[] txid)
+        {
+            byte[] v = Storage.Get(Storage.CurrentContext, getTxidKey(txid));
+            if (v.Length == 0)
+                return null;
+            return (SARTransferDetail)Helper.Deserialize(v);
         }
 
         private static bool checkAdmin()
@@ -480,7 +501,6 @@ namespace BusinessContract
             byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(ORACLE_ACCOUNT.AsByteArray()));
             byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(SDS_ACCOUNT.AsByteArray()));
             byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(TOKENIZED_ACCOUNT.AsByteArray()));
-            byte[] to = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
 
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
@@ -526,7 +546,7 @@ namespace BusinessContract
                 //调用Oracle,查询手续费，如：1000000000
                 arg = new object[1];
                 arg[0] = SERVICE_FEE;
-                BigInteger re = (BigInteger)OracleContract("getTypeB", arg);
+                BigInteger re = (BigInteger)OracleContract("getTypeA", arg);
                 if (re != 0)
                     serviceFree = re;
             }
@@ -540,7 +560,7 @@ namespace BusinessContract
             //剩余必须大于
             if (locked - value < serviceFree) throw new InvalidOperationException("The param is exception.");
 
-            byte[] from = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] from = ExecutionEngine.ExecutingScriptHash;
 
             var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
 
@@ -601,9 +621,6 @@ namespace BusinessContract
             BigInteger hasDrawed = info.hasDrawed;
 
             object[] arg = new object[0];
-            BigInteger sds_price = 0;
-            BigInteger anchor_price = 0;
-
 
             //当前兑换率，默认是100，需要从配置中心获取
             BigInteger serviceFree = 1000000000;
@@ -640,10 +657,6 @@ namespace BusinessContract
             var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
             if (!(bool)TokenizedContract("close", param)) throw new InvalidOperationException("The operation is exception.");
 
-            info.locked = 0;
-            info.status = (int)ConfigSARStatus.SAR_STATUS_CLOSE;
-
-            //Storage.Put(Storage.CurrentContext,key, Helper.Serialize(info));
             Storage.Delete(Storage.CurrentContext,key);
             //记录交易详细数据
             SARTransferDetail detail = new SARTransferDetail();
@@ -683,8 +696,6 @@ namespace BusinessContract
             if (info.status == (int)ConfigSARStatus.SAR_STATUS_CLOSE) throw new InvalidOperationException("The param is exception.");
 
             byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(TOKENIZED_ACCOUNT.AsByteArray()));
-
-            byte[] to = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
 
             BigInteger hasDrawed = info.hasDrawed;
             //不能超过已经获取
@@ -760,7 +771,7 @@ namespace BusinessContract
             byte[] txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
             SARInfo info = new SARInfo();
             info.symbol = symbol;
-            info.decimals = 8;
+            info.decimals = decimals;
             info.name = name;
             info.hasDrawed = 0;
             info.locked = 0;
@@ -859,7 +870,7 @@ namespace BusinessContract
             //触发操作事件
             Operated(info.name.AsByteArray(), addr, info.txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_INIT, 0);
 
-            Nep55Operated(info.name.AsByteArray(),addr, info.txid,info.anchor.AsByteArray(),info.symbol.AsByteArray(),8);
+            Nep55Operated(info.name.AsByteArray(),addr, info.txid,info.anchor.AsByteArray(),info.symbol.AsByteArray(),info.decimals);
             return true;
         }
 
@@ -1012,7 +1023,7 @@ namespace BusinessContract
             detail.type = (int)ConfigTranType.TRANSACTION_TYPE_EXPANDE;
             detail.operated = value;
             detail.hasLocked = locked;
-            detail.hasDrawed = hasDrawed;
+            detail.hasDrawed = info.hasDrawed;
 
             Storage.Put(Storage.CurrentContext, getTxidKey(txid), Helper.Serialize(detail));
 
