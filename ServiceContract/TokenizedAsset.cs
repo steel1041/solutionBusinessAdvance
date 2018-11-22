@@ -23,7 +23,7 @@ namespace ServiceContract
         private static readonly byte[] admin = Helper.ToScriptHash("AaBmSJ4Beeg2AeKczpXk89DnmVrPn3SHkU");
 
         //Call合约账户
-        private const string CALL_ACCOUNT = "call_script";
+        private const string CALL_ACCOUNT = "call_account";
 
         //admin账户
         private const string ADMIN_ACCOUNT = "admin_account";
@@ -34,8 +34,6 @@ namespace ServiceContract
         private static byte[] getAccountKey(byte[] key) => new byte[] { 0x15 }.Concat(key);
 
         private static byte[] getNameKey(byte[] name) => new byte[] { 0x12 }.Concat(name);
-
-        private static byte[] getTxidKey(byte[] txid) => new byte[] { 0x13 }.Concat(txid);
 
         private static byte[] getBalanceKey(byte[] name,byte[] addr) => new byte[] { 0x11 }.Concat(name).Concat(addr);
 
@@ -50,6 +48,7 @@ namespace ServiceContract
             else if (Runtime.Trigger == TriggerType.Application)
             {
                 var callscript = ExecutionEngine.CallingScriptHash;
+
                 if (operation == "totalSupply")
                 {
                     if (args.Length != 1) return 0;
@@ -111,8 +110,8 @@ namespace ServiceContract
                     if (!Runtime.CheckWitness(addr))
                         return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
-                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
+                        return false;
                     return init(name, symbol, decimals);
                 }
                 if (operation == "close")
@@ -124,8 +123,8 @@ namespace ServiceContract
                     if (!Runtime.CheckWitness(addr))
                         return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
-                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
+                        return false;
                     return close(name, addr);
                 }
                 //增发代币
@@ -138,8 +137,8 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
-                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
+                        return false;
                     return increaseByBu(name, addr, value);
                 }
                 //销毁代币
@@ -152,11 +151,11 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr)) return false;
                     //判断调用者是否是跳板合约
-                    byte[] jumpCallScript = Storage.Get(Storage.CurrentContext, getAccountKey(CALL_ACCOUNT.AsByteArray()));
-                    if (callscript.AsBigInteger() != jumpCallScript.AsBigInteger()) return false;
+                    if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
+                        return false;
                     return destoryByBu(name, addr, value);
                 }
-                //设置跳板调用合约地址
+                //设置调用合约地址
                 if (operation == "setAccount")
                 {
                     if (args.Length != 2) return false;
@@ -165,6 +164,12 @@ namespace ServiceContract
 
                     if (!checkAdmin()) return false;
                     return setAccount(key, address);
+                }
+                if (operation == "getAccount")
+                {
+                    if (args.Length != 1) return false;
+                    string key = (string)args[0];
+                    return getAccount(key);
                 }
                 #region 升级合约,耗费490,仅限管理员
                 if (operation == "upgrade")
@@ -211,6 +216,7 @@ namespace ServiceContract
             return true;
         }
 
+
         private static bool checkAdmin()
         {
             byte[] currAdmin = Storage.Get(Storage.CurrentContext, getAccountKey(ADMIN_ACCOUNT.AsByteArray()));
@@ -230,6 +236,11 @@ namespace ServiceContract
         {
             Storage.Put(Storage.CurrentContext, getAccountKey(key.AsByteArray()), addr);
             return true;
+        }
+
+        public static byte[] getAccount(string key)
+        {
+            return Storage.Get(Storage.CurrentContext, getAccountKey(key.AsByteArray()));
         }
 
         public static bool close(string name, byte[] addr)

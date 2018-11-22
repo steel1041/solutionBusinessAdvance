@@ -60,6 +60,8 @@ namespace BusinessContract
 
         private const string SAR_STATE = "sar_state";
 
+        private const string NAME_PREFIX = "SD-";
+
         private const ulong FOURTEEN_POWER = 100000000000000;
 
         private static byte[] getSARKey(byte[] addr) => new byte[] { 0x12 }.Concat(addr);
@@ -355,6 +357,28 @@ namespace BusinessContract
             else
             {
                 if (!Runtime.CheckWitness(admin)) return false;
+            }
+            return true;
+        }
+
+        /**
+         * 验证name合法性，必须是字母
+         */
+        private static bool checkName(string name) {
+            foreach (var c in name)
+            {
+                if ('A' <= c && c <= 'Z')
+                {
+                    continue;
+                }
+                else if ('a' <= c && c <= 'z')
+                {
+                    continue;
+                }
+                else
+                {
+                    return false;
+                }
             }
             return true;
         }
@@ -739,6 +763,12 @@ namespace BusinessContract
             if (!checkState(SAR_STATE))
                 throw new InvalidOperationException("The sar state MUST be pause.");
 
+            if(name.Length <= 0)
+                throw new InvalidOperationException("The parameter name MUST bigger than 0.");
+
+            if (!checkName(name))
+                throw new InvalidOperationException("The parameter name is invalid.");
+
             //判断该地址是否拥有SAR
             var key = getSARKey(addr);
             byte[] sar = Storage.Get(Storage.CurrentContext, key);
@@ -751,7 +781,7 @@ namespace BusinessContract
             {
                 //调用标准合约
                 object[] arg = new object[1];
-                arg[0] = name;
+                arg[0] = string.Concat(NAME_PREFIX,name);
                 //验证name
                 var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
                 string str = (string)TokenizedContract("name", arg);
@@ -772,7 +802,7 @@ namespace BusinessContract
             SARInfo info = new SARInfo();
             info.symbol = symbol;
             info.decimals = decimals;
-            info.name = name;
+            info.name = string.Concat(NAME_PREFIX, name);
             info.hasDrawed = 0;
             info.locked = 0;
             info.owner = addr;
@@ -823,12 +853,17 @@ namespace BusinessContract
             byte[] to = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
 
             //验证name
+
+            if (!checkName(info.name))
+                throw new InvalidOperationException("The parameter name is invalid.");
+
             object[] arg = new object[1];
             arg[0] = info.name;
 
             var TokenizedContract = (NEP5Contract)tokenizedAssetID.ToDelegate();
             string str = (string)TokenizedContract("name", arg);
-            if (str.Length > 0) throw new InvalidOperationException("The name must be null.");
+            if (str.Length > 0)
+                throw new InvalidOperationException("The name must be null.");
 
             //当前兑换率，默认是10，需要从配置中心获取
             BigInteger serviceFree = 1000000000;
