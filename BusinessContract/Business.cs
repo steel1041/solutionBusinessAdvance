@@ -100,7 +100,7 @@ namespace BusinessContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-10-18 14:45";
+            var magicstr = "2018-11-23 14:45";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {

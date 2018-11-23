@@ -39,7 +39,7 @@ namespace ServiceContract
 
         public static Object Main(string operation, params object[] args)
         {
-            var magicstr = "2018-10-18";
+            var magicstr = "2018-11-23";
 
             if (Runtime.Trigger == TriggerType.Verification)
             {

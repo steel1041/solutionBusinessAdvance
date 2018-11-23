@@ -7,10 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BusinessContract", "Busines
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceContract", "ServiceContract\ServiceContract.csproj", "{A58DD2D8-EC67-456E-B62C-D1ADB185EB71}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OracleContract", "OracleContract\OracleContract.csproj", "{857B66A7-9BC6-4155-8939-875FF2DC094D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExternalDataCenter", "ExternalDataCenter\ExternalDataCenter.csproj", "{C5B9A317-5711-4619-8AC3-4F55B6FA1E61}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,14 +21,6 @@ Global
 		{A58DD2D8-EC67-456E-B62C-D1ADB185EB71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A58DD2D8-EC67-456E-B62C-D1ADB185EB71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A58DD2D8-EC67-456E-B62C-D1ADB185EB71}.Release|Any CPU.Build.0 = Release|Any CPU
-		{857B66A7-9BC6-4155-8939-875FF2DC094D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{857B66A7-9BC6-4155-8939-875FF2DC094D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{857B66A7-9BC6-4155-8939-875FF2DC094D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{857B66A7-9BC6-4155-8939-875FF2DC094D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C5B9A317-5711-4619-8AC3-4F55B6FA1E61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C5B9A317-5711-4619-8AC3-4F55B6FA1E61}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C5B9A317-5711-4619-8AC3-4F55B6FA1E61}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C5B9A317-5711-4619-8AC3-4F55B6FA1E61}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
