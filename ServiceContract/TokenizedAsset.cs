@@ -12,30 +12,22 @@ namespace ServiceContract
     public class TokenizedAsset : SmartContract
     {
 
-        /*存储结构有     
-         * map(address,balance)   存储地址余额   key = 0x11+name+address
-         * map(name,token)        存储多token值  key = 0x12+name
-         * map(txid,TransferInfo) 存储交易详情   key = 0x13+txid
-         * map(str,address)       存储配置信息   key = 0x14+str
-        */
+        //Default multiple signature committee account
+        private static readonly byte[] committee = Helper.ToScriptHash("AZ77FiX7i9mRUPF2RyuJD2L8kS6UDnQ9Y7");
 
-        //管理员账户
-        private static readonly byte[] admin = Helper.ToScriptHash("AaBmSJ4Beeg2AeKczpXk89DnmVrPn3SHkU");
-
-        //Call合约账户
+        //Static param
         private const string CALL_ACCOUNT = "call_account";
-
-        //admin账户
         private const string ADMIN_ACCOUNT = "admin_account";
 
         [DisplayName("sarTransfer")]
         public static event Action<byte[], byte[], byte[], BigInteger> Transferred;
 
+        /*     
+        * Key wrapper
+        */
         private static byte[] getAccountKey(byte[] key) => new byte[] { 0x15 }.Concat(key);
-
         private static byte[] getNameKey(byte[] name) => new byte[] { 0x12 }.Concat(name);
-
-        private static byte[] getBalanceKey(byte[] name,byte[] addr) => new byte[] { 0x11 }.Concat(name).Concat(addr);
+        private static byte[] getBalanceKey(byte[] name, byte[] addr) => new byte[] { 0x11 }.Concat(name).Concat(addr);
 
         public static Object Main(string operation, params object[] args)
         {
@@ -109,7 +101,7 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr))
                         return false;
-                    //判断调用者是否是跳板合约
+                    //only the legal SAR4B contract can call this method
                     if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
                         return false;
                     return init(name, symbol, decimals);
@@ -122,12 +114,12 @@ namespace ServiceContract
 
                     if (!Runtime.CheckWitness(addr))
                         return false;
-                    //判断调用者是否是跳板合约
+
                     if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
                         return false;
                     return close(name, addr);
                 }
-                //增发代币
+
                 if (operation == "increase")
                 {
                     if (args.Length != 3) return false;
@@ -135,13 +127,12 @@ namespace ServiceContract
                     byte[] addr = (byte[])args[1];
                     BigInteger value = (BigInteger)args[2];
 
-                    if (!Runtime.CheckWitness(addr)) return false;
-                    //判断调用者是否是跳板合约
+                    //only the legal SAR4B contract can call this method
                     if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
                         return false;
                     return increaseByBu(name, addr, value);
                 }
-                //销毁代币
+
                 if (operation == "destory")
                 {
                     if (args.Length != 3) return false;
@@ -149,19 +140,18 @@ namespace ServiceContract
                     byte[] addr = (byte[])args[1];
                     BigInteger value = (BigInteger)args[2];
 
-                    if (!Runtime.CheckWitness(addr)) return false;
-                    //判断调用者是否是跳板合约
+                    //only the legal SAR4B contract can call this method
                     if (callscript.AsBigInteger() != getAccount(CALL_ACCOUNT).AsBigInteger())
                         return false;
                     return destoryByBu(name, addr, value);
                 }
-                //设置调用合约地址
+
                 if (operation == "setAccount")
                 {
                     if (args.Length != 2) return false;
                     string key = (string)args[0];
                     byte[] address = (byte[])args[1];
-
+                    //only committee account can call this method
                     if (!checkAdmin()) return false;
                     return setAccount(key, address);
                 }
@@ -171,10 +161,10 @@ namespace ServiceContract
                     string key = (string)args[0];
                     return getAccount(key);
                 }
-                #region 升级合约,耗费490,仅限管理员
+                #region contract upgrade
                 if (operation == "upgrade")
                 {
-                    //不是管理员 不能操作
+
                     if (!checkAdmin()) return false;
 
                     if (args.Length != 1 && args.Length != 9)
@@ -182,7 +172,7 @@ namespace ServiceContract
 
                     byte[] script = Blockchain.GetContract(ExecutionEngine.ExecutingScriptHash).Script;
                     byte[] new_script = (byte[])args[0];
-                    //如果传入的脚本一样 不继续操作
+                    //new script should different from old script
                     if (script == new_script)
                         return false;
 
@@ -222,12 +212,12 @@ namespace ServiceContract
             byte[] currAdmin = Storage.Get(Storage.CurrentContext, getAccountKey(ADMIN_ACCOUNT.AsByteArray()));
             if (currAdmin.Length > 0)
             {
-                //当前地址和配置地址必须一致
+
                 if (!Runtime.CheckWitness(currAdmin)) return false;
             }
             else
             {
-                if (!Runtime.CheckWitness(admin)) return false;
+                if (!Runtime.CheckWitness(committee)) return false;
             }
             return true;
         }
@@ -253,8 +243,6 @@ namespace ServiceContract
             return true;
         }
 
-
-        //增发货币
         public static bool increaseByBu(string name, byte[] to, BigInteger value)
         {
             if (to.Length != 20) return false;
@@ -275,7 +263,6 @@ namespace ServiceContract
             return true;
         }
 
-        //销毁货币
         public static bool destoryByBu(string name, byte[] from, BigInteger value)
         {
             if (from.Length != 20) return false;
@@ -286,7 +273,7 @@ namespace ServiceContract
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
-            if(!transfer(name, from, null, value))
+            if (!transfer(name, from, null, value))
                 throw new InvalidOperationException("Operation is error.");
 
             Tokenized t = Helper.Deserialize(token) as Tokenized;
@@ -349,7 +336,7 @@ namespace ServiceContract
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0 || address.Length != 20) return 0;
 
-            var balanceKey = getBalanceKey(name.AsByteArray(),address);
+            var balanceKey = getBalanceKey(name.AsByteArray(), address);
             return Storage.Get(Storage.CurrentContext, balanceKey).AsBigInteger();
         }
 
@@ -365,9 +352,9 @@ namespace ServiceContract
             byte[] token = Storage.Get(Storage.CurrentContext, key);
             if (token.Length == 0) return false;
 
-            byte[] fromKey = getBalanceKey(name.AsByteArray(),from);
-            byte[] toKey = getBalanceKey(name.AsByteArray(),to);
-            //付款方
+            byte[] fromKey = getBalanceKey(name.AsByteArray(), from);
+            byte[] toKey = getBalanceKey(name.AsByteArray(), to);
+
             if (from.Length > 0)
             {
                 BigInteger from_value = Storage.Get(Storage.CurrentContext, fromKey).AsBigInteger();
@@ -377,30 +364,29 @@ namespace ServiceContract
                 else
                     Storage.Put(Storage.CurrentContext, fromKey, from_value - value);
             }
-            //收款方
+
             if (to.Length > 0)
             {
                 BigInteger to_value = Storage.Get(Storage.CurrentContext, toKey).AsBigInteger();
                 Storage.Put(Storage.CurrentContext, toKey, to_value + value);
             }
 
-            //notify,这里from,to无需加前缀
+            //notify
             Transferred(name.AsByteArray(), from, to, value);
             return true;
         }
 
         public class Tokenized
         {
-            //对应稳定币名称，唯一性
+            //name of stable coin
             public string name;
 
-            //总量等价于已经提取的资产
+            //totalSupply of stable coin
             public BigInteger totalSupply;
 
-            //简称
+            //symbol of stable coin
             public string symbol;
 
-            //小数位数
             public byte decimals;
         }
 
