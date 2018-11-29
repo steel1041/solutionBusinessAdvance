@@ -42,7 +42,6 @@ namespace SAR4B
 
         //system account
         private const string SDS_ACCOUNT = "sds_account";
-        private const string STORAGE_ACCOUNT = "storage_account";
         private const string ORACLE_ACCOUNT = "oracle_account";
         private const string TOKENIZED_ACCOUNT = "tokenized_account";
         private const string ADMIN_ACCOUNT = "admin_account";
@@ -404,7 +403,7 @@ namespace SAR4B
             BigInteger hasDrawed = sarInfo.hasDrawed;
 
             byte[] newSARID = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT_NEW.AsByteArray()));
-            byte[] from = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] from = ExecutionEngine.ExecutingScriptHash;
             byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(SDS_ACCOUNT.AsByteArray()));
 
             {
@@ -613,7 +612,7 @@ namespace SAR4B
             byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(ORACLE_ACCOUNT.AsByteArray()));
             byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(SDS_ACCOUNT.AsByteArray()));
             byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(TOKENIZED_ACCOUNT.AsByteArray()));
-            byte[] from = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] from = ExecutionEngine.ExecutingScriptHash;
 
             BigInteger locked = info.locked;
             BigInteger hasDrawed = info.hasDrawed;
@@ -814,7 +813,7 @@ namespace SAR4B
             byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(ORACLE_ACCOUNT.AsByteArray()));
             byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(SDS_ACCOUNT.AsByteArray()));
             byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(TOKENIZED_ACCOUNT.AsByteArray()));
-            byte[] to = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] to = ExecutionEngine.ExecutingScriptHash;
 
             object[] arg = new object[1];
             arg[0] = info.name;
@@ -889,7 +888,7 @@ namespace SAR4B
             if (info.status == (int)ConfigSARStatus.SAR_STATUS_CLOSE)
                 throw new InvalidOperationException("The parameter is exception.");
 
-            byte[] to = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] to = ExecutionEngine.ExecutingScriptHash;
             object[] arg = new object[3];
             arg[0] = addr;
             arg[1] = to;
@@ -1041,7 +1040,7 @@ namespace SAR4B
             byte[] oracleAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(ORACLE_ACCOUNT.AsByteArray()));
             byte[] tokenizedAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(TOKENIZED_ACCOUNT.AsByteArray()));
 
-            byte[] from = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] from = ExecutionEngine.ExecutingScriptHash;
 
             string name = info.name;
 
@@ -1096,7 +1095,7 @@ namespace SAR4B
             var redeemKey = getRedeemKey(addr);
             BigInteger redeemBalance = Storage.Get(Storage.CurrentContext, redeemKey).AsBigInteger();
 
-            byte[] from = Storage.Get(Storage.CurrentContext, getAccountKey(STORAGE_ACCOUNT.AsByteArray()));
+            byte[] from = ExecutionEngine.ExecutingScriptHash;
             byte[] sdsAssetID = Storage.Get(Storage.CurrentContext, getAccountKey(SDS_ACCOUNT.AsByteArray()));
 
             object[] param = new object[3];
