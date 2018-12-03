@@ -378,8 +378,12 @@ namespace SAR4B
             byte[] sarCurr = Storage.Get(Storage.CurrentContext, key);
             if (sarCurr.Length > 0)
                 return false;
+            var txid = ((Transaction)ExecutionEngine.ScriptContainer).Hash;
 
             Storage.Put(Storage.CurrentContext, key, Helper.Serialize(sar));
+
+            //notify
+            Operated(sar.name.AsByteArray(), addr, txid, txid, (int)ConfigTranType.TRANSACTION_TYPE_OPEN, 0);
             return true;
         }
 
@@ -430,7 +434,6 @@ namespace SAR4B
 
                 if (!(bool)newContract("createSAR4B", args)) throw new InvalidOperationException("The sar operation is exception.");
             }
-            Storage.Delete(Storage.CurrentContext, key);
             return true;
         }
 
